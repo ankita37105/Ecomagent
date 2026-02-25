@@ -80,7 +80,7 @@ loginForm.addEventListener('submit', async (e) => {
     if (error) {
         loginError.textContent = error.message;
     } else {
-        closeModal();
+        window.location.href = 'dashboard.html';
     }
 });
 
@@ -122,6 +122,18 @@ supabase.auth.onAuthStateChange((_event, session) => {
 // Check session on load
 supabase.auth.getSession().then(({ data: { session } }) => {
     updateNavForUser(session?.user ?? null);
+});
+
+// Hook all "Get Started" / "Start Building" buttons to open signup modal
+document.querySelectorAll('a.btn').forEach(btn => {
+    const text = btn.textContent.trim();
+    if (text === 'Get Started' || text === 'Start Building' || text === 'Get Started Now') {
+        btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            openModal('signup');
+        });
+    }
 });
 
 // ===== Mobile menu toggle

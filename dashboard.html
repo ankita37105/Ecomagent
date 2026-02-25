@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard — EcomAgent</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg-primary: #0a0a0f;
+            --bg-secondary: #12121a;
+            --bg-card: #16161f;
+            --bg-card-hover: #1c1c28;
+            --border: #1e1e2e;
+            --border-hover: #2a2a3e;
+            --text-primary: #f0f0f5;
+            --text-secondary: #8888a0;
+            --text-muted: #55556a;
+            --accent: #7c5cfc;
+            --accent-light: #9b7eff;
+            --accent-glow: rgba(124, 92, 252, 0.3);
+            --gradient: linear-gradient(135deg, #7c5cfc, #c084fc, #e879f9);
+            --radius: 12px;
+            --radius-lg: 20px;
+            --transition: 0.3s ease;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+        }
+
+        a { text-decoration: none; color: inherit; }
+
+        /* Sidebar */
+        .layout { display: flex; min-height: 100vh; }
+
+        .sidebar {
+            width: 260px;
+            background: var(--bg-secondary);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            padding: 24px 0;
+            position: fixed;
+            top: 0; left: 0; bottom: 0;
+        }
+
+        .sidebar-logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 0 24px 32px;
+            font-size: 1.2rem;
+            font-weight: 700;
+        }
+
+        .logo-icon { font-size: 1.4rem; }
+        .logo-dot { color: var(--accent); }
+
+        .sidebar-nav { flex: 1; }
+
+        .nav-section-label {
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--text-muted);
+            padding: 0 24px;
+            margin-bottom: 8px;
+            margin-top: 24px;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 11px 24px;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all var(--transition);
+            border-left: 3px solid transparent;
+        }
+
+        .nav-item:hover {
+            color: var(--text-primary);
+            background: rgba(124, 92, 252, 0.05);
+        }
+
+        .nav-item.active {
+            color: var(--accent-light);
+            background: rgba(124, 92, 252, 0.08);
+            border-left-color: var(--accent);
+        }
+
+        .nav-item svg { flex-shrink: 0; opacity: 0.7; }
+        .nav-item.active svg { opacity: 1; }
+
+        .sidebar-bottom {
+            padding: 24px;
+            border-top: 1px solid var(--border);
+        }
+
+        .user-card {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .user-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: var(--gradient);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.9rem;
+            font-weight: 700;
+            color: #fff;
+            flex-shrink: 0;
+        }
+
+        .user-info { flex: 1; min-width: 0; }
+        .user-email {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .logout-btn {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            font-size: 0.8rem;
+            padding: 4px 0;
+            transition: color var(--transition);
+            font-family: inherit;
+            display: block;
+            text-align: left;
+        }
+        .logout-btn:hover { color: #f87171; }
+
+        /* Main content */
+        .main {
+            margin-left: 260px;
+            flex: 1;
+            padding: 40px;
+            max-width: 100%;
+        }
+
+        .page-header {
+            margin-bottom: 32px;
+        }
+
+        .page-header h1 {
+            font-size: 1.8rem;
+            font-weight: 700;
+            margin-bottom: 6px;
+        }
+
+        .page-header p {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+        }
+
+        /* Stats row */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+            margin-bottom: 32px;
+        }
+
+        .stat-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 24px;
+            transition: border-color var(--transition);
+        }
+
+        .stat-card:hover { border-color: var(--border-hover); }
+
+        .stat-label {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 12px;
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 6px;
+        }
+
+        .stat-sub {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        .stat-green { color: #4ade80; }
+        .stat-purple { color: var(--accent-light); }
+        .stat-blue { color: #60a5fa; }
+        .stat-yellow { color: #facc15; }
+
+        /* API Key card */
+        .section-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 16px;
+        }
+
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 28px;
+            margin-bottom: 24px;
+        }
+
+        .api-key-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-hover);
+            border-radius: 10px;
+            padding: 14px 18px;
+            margin-bottom: 16px;
+        }
+
+        .api-key-value {
+            flex: 1;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .copy-btn {
+            background: var(--accent);
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            padding: 8px 16px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background var(--transition);
+            font-family: inherit;
+            white-space: nowrap;
+        }
+        .copy-btn:hover { background: var(--accent-light); }
+
+        .api-hint {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+
+        .api-hint code {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-hover);
+            border-radius: 6px;
+            padding: 2px 8px;
+            font-size: 0.8rem;
+            color: var(--accent-light);
+        }
+
+        /* Plan badge */
+        .plan-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+
+        .plan-info h3 { font-size: 1.1rem; margin-bottom: 4px; }
+        .plan-info p { font-size: 0.85rem; color: var(--text-secondary); }
+
+        .plan-badge {
+            padding: 6px 18px;
+            border-radius: 50px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .plan-badge.free {
+            background: rgba(124, 92, 252, 0.1);
+            color: var(--accent-light);
+            border: 1px solid var(--accent);
+        }
+
+        .upgrade-btn {
+            background: var(--accent);
+            color: #fff;
+            border: none;
+            border-radius: 10px;
+            padding: 10px 24px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background var(--transition);
+            font-family: inherit;
+        }
+        .upgrade-btn:hover { background: var(--accent-light); }
+
+        /* Quick start */
+        .steps { display: flex; flex-direction: column; gap: 16px; }
+
+        .step {
+            display: flex;
+            align-items: flex-start;
+            gap: 16px;
+        }
+
+        .step-num {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: rgba(124, 92, 252, 0.15);
+            border: 1px solid var(--accent);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: var(--accent-light);
+            flex-shrink: 0;
+            margin-top: 2px;
+        }
+
+        .step-content h4 { font-size: 0.95rem; margin-bottom: 4px; }
+        .step-content p { font-size: 0.85rem; color: var(--text-secondary); line-height: 1.5; }
+        .step-content code {
+            display: inline-block;
+            margin-top: 6px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-hover);
+            border-radius: 6px;
+            padding: 4px 10px;
+            font-size: 0.78rem;
+            color: var(--accent-light);
+            word-break: break-all;
+        }
+
+        /* Two col layout */
+        .two-col {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+        }
+
+        /* Gradient text */
+        .gradient-text {
+            background: linear-gradient(135deg, #7c5cfc, #c084fc, #e879f9);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        /* Loading overlay */
+        #loading-screen {
+            position: fixed;
+            inset: 0;
+            background: var(--bg-primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid var(--border-hover);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        @media (max-width: 1100px) {
+            .stats-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+
+        @media (max-width: 768px) {
+            .sidebar { display: none; }
+            .main { margin-left: 0; padding: 24px 16px; }
+            .stats-grid { grid-template-columns: repeat(2, 1fr); }
+            .two-col { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+<div id="loading-screen">
+    <div class="spinner"></div>
+</div>
+
+<div class="layout" id="app" style="display:none;">
+
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <div class="sidebar-logo">
+            <span class="logo-icon">⚡</span>
+            <span>ecomagent<span class="logo-dot">.in</span></span>
+        </div>
+
+        <nav class="sidebar-nav">
+            <div class="nav-section-label">Main</div>
+            <div class="nav-item active">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+                Dashboard
+            </div>
+            <div class="nav-item">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2H3v16h5v4l4-4h5l4-4V2z"/></svg>
+                API Keys
+            </div>
+            <div class="nav-item">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+                Usage
+            </div>
+            <div class="nav-section-label">Account</div>
+            <div class="nav-item">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+                Profile
+            </div>
+            <div class="nav-item">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+                Billing
+            </div>
+        </nav>
+
+        <div class="sidebar-bottom">
+            <div class="user-card">
+                <div class="user-avatar" id="sidebar-avatar">U</div>
+                <div class="user-info">
+                    <div class="user-email" id="sidebar-email">Loading...</div>
+                    <button class="logout-btn" id="logout-btn">Sign out</button>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main">
+        <div class="page-header">
+            <h1>Welcome back <span class="gradient-text" id="welcome-name">!</span></h1>
+            <p>Here's an overview of your EcomAgent account.</p>
+        </div>
+
+        <!-- Stats -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-label">API Calls Today</div>
+                <div class="stat-value stat-purple">0</div>
+                <div class="stat-sub">of unlimited</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">This Month</div>
+                <div class="stat-value stat-blue">0</div>
+                <div class="stat-sub">total requests</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Status</div>
+                <div class="stat-value stat-green">Active</div>
+                <div class="stat-sub">99.9% uptime</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Current Plan</div>
+                <div class="stat-value stat-yellow">Free</div>
+                <div class="stat-sub"><a href="index.html#pricing" style="color:var(--accent-light)">Upgrade →</a></div>
+            </div>
+        </div>
+
+        <!-- API Key -->
+        <div class="card">
+            <div class="section-title">Your API Key</div>
+            <div class="api-key-row">
+                <span class="api-key-value" id="api-key-display">sk-ecoma-••••••••••••••••••••••••••••••</span>
+                <button class="copy-btn" id="copy-key-btn">Copy Key</button>
+            </div>
+            <p class="api-hint">
+                Use this as a drop-in replacement for the Anthropic API.<br>
+                Set your base URL to <code>https://api.ecomagent.in/v1</code> and use this key.
+            </p>
+        </div>
+
+        <div class="two-col">
+            <!-- Plan -->
+            <div class="card">
+                <div class="section-title">Current Plan</div>
+                <div class="plan-row">
+                    <div class="plan-info">
+                        <h3>Free Plan <span class="plan-badge free">Free</span></h3>
+                        <p>Limited access · Upgrade for unlimited usage</p>
+                    </div>
+                </div>
+                <div style="margin-top:20px;">
+                    <button class="upgrade-btn" onclick="window.location.href='index.html#pricing'">Upgrade Plan →</button>
+                </div>
+            </div>
+
+            <!-- Quick Start -->
+            <div class="card">
+                <div class="section-title">Quick Start</div>
+                <div class="steps">
+                    <div class="step">
+                        <div class="step-num">1</div>
+                        <div class="step-content">
+                            <h4>Copy your API key</h4>
+                            <p>Click "Copy Key" above to copy your personal API key.</p>
+                        </div>
+                    </div>
+                    <div class="step">
+                        <div class="step-num">2</div>
+                        <div class="step-content">
+                            <h4>Set your base URL</h4>
+                            <code>https://api.ecomagent.in/v1</code>
+                        </div>
+                    </div>
+                    <div class="step">
+                        <div class="step-num">3</div>
+                        <div class="step-content">
+                            <h4>Start making requests</h4>
+                            <p>Works with any Anthropic SDK or HTTP client.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+    const SUPABASE_URL = 'https://zwggawnojtjiaklycfhc.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp3Z2dhd25vanRqaWFrbHljZmhjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIwMzU3NDUsImV4cCI6MjA4NzYxMTc0NX0.-pQHomLNGWL7OvQpHL2_7T_NwI4wAzyNYMOknX_YJSE';
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    async function init() {
+        const { data: { session } } = await supabase.auth.getSession();
+
+        if (!session) {
+            window.location.href = 'index.html';
+            return;
+        }
+
+        const user = session.user;
+        const email = user.email;
+        const initial = email.charAt(0).toUpperCase();
+
+        document.getElementById('sidebar-email').textContent = email;
+        document.getElementById('sidebar-avatar').textContent = initial;
+        document.getElementById('welcome-name').textContent = email.split('@')[0] + '!';
+
+        // Show a masked API key based on user id
+        const maskedKey = 'sk-ecoma-' + user.id.replace(/-/g, '').slice(0, 8) + '••••••••••••••••••••';
+        document.getElementById('api-key-display').textContent = maskedKey;
+
+        document.getElementById('loading-screen').style.display = 'none';
+        document.getElementById('app').style.display = 'flex';
+    }
+
+    document.getElementById('logout-btn').addEventListener('click', async () => {
+        await supabase.auth.signOut();
+        window.location.href = 'index.html';
+    });
+
+    document.getElementById('copy-key-btn').addEventListener('click', function() {
+        const key = document.getElementById('api-key-display').textContent;
+        navigator.clipboard.writeText(key).then(() => {
+            this.textContent = 'Copied!';
+            setTimeout(() => this.textContent = 'Copy Key', 2000);
+        });
+    });
+
+    init();
+</script>
+</body>
+</html>
