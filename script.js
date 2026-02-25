@@ -2,13 +2,18 @@
 const supabaseConfig = window.ECOM_SUPABASE_CONFIG || {};
 const SUPABASE_URL = supabaseConfig.url;
 const SUPABASE_ANON_KEY = supabaseConfig.anonKey;
+const isSupabaseSdkLoaded = !!window.supabase?.createClient;
+const hasSupabaseConfig = !!SUPABASE_URL && !!SUPABASE_ANON_KEY;
+const supabase = (isSupabaseSdkLoaded && hasSupabaseConfig)
+    ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+    : null;
 
-if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-    alert('Missing Supabase config. Please update supabase-config.js');
-    throw new Error('Supabase config missing');
+if (!isSupabaseSdkLoaded) {
+    console.error('Supabase SDK failed to load. Check CDN/network settings.');
 }
-
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+if (!hasSupabaseConfig) {
+    console.error('Missing Supabase config. Please update supabase-config.js');
+}
 
 // ===== Auth UI elements =====
 const authModal     = document.getElementById('auth-modal');
@@ -90,6 +95,12 @@ loginForm.addEventListener('submit', async (e) => {
     loginError.textContent = '';
     signupError.textContent = '';
     signupSuccess.textContent = '';
+
+    if (!supabase) {
+        loginError.textContent = 'Auth service is not available right now. Please refresh and try again.';
+        return;
+    }
+
     const btn = document.getElementById('login-submit-btn');
     btn.textContent = 'Signing in...';
     btn.disabled = true;
@@ -119,6 +130,12 @@ signupForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     signupError.textContent   = '';
     signupSuccess.textContent = '';
+
+    if (!supabase) {
+        signupError.textContent = 'Auth service is not available right now. Please refresh and try again.';
+        return;
+    }
+
     const btn = document.getElementById('signup-submit-btn');
     btn.textContent = 'Creating account...';
     btn.disabled = true;
@@ -160,27 +177,38 @@ signupForm.addEventListener('submit', async (e) => {
 
 // Logout
 logoutBtn.addEventListener('click', async () => {
+    if (!supabase) {
+        updateNavForUser(null);
+        return;
+    }
+
     await supabase.auth.signOut();
     updateNavForUser(null);
 });
 
-// Auth state
-supabase.auth.onAuthStateChange((event, session) => {
-    updateNavForUser(session?.user ?? null);
+if (supabase) {
+    // Auth state
+    supabase.auth.onAuthStateChange((event, session) => {
+        updateNavForUser(session?.user ?? null);
 
-    if (event === 'SIGNED_IN' && session?.user) {
-        window.location.href = 'dashboard.html';
-    }
-});
+        if (event === 'SIGNED_IN' && session?.user) {
+            window.location.href = 'dashboard.html';
+        }
+    });
 
-// Session on load
-supabase.auth.getSession().then(({ data: { session } }) => {
-    updateNavForUser(session?.user ?? null);
+    // Session on load
+    supabase.auth.getSession().then(({ data: { session } }) => {
+        updateNavForUser(session?.user ?? null);
 
-    if (session?.user) {
-        window.location.href = 'dashboard.html';
-    }
-});
+        if (session?.user) {
+            window.location.href = 'dashboard.html';
+        }
+    }).catch(() => {
+        updateNavForUser(null);
+    });
+} else {
+    updateNavForUser(null);
+}
 
 // Hook pricing/hero "Get Started" buttons to open signup modal
 document.querySelectorAll('a.btn').forEach(btn => {
