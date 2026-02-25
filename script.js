@@ -1,6 +1,13 @@
 // ===== Supabase Auth =====
-const SUPABASE_URL = 'https://zwggawnojtjiaklycfhc.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp3Z2dhd25vanRqaWFrbHljZmhjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIwMzU3NDUsImV4cCI6MjA4NzYxMTc0NX0.-pQHomLNGWL7OvQpHL2_7T_NwI4wAzyNYMOknX_YJSE';
+const supabaseConfig = window.ECOM_SUPABASE_CONFIG || {};
+const SUPABASE_URL = supabaseConfig.url;
+const SUPABASE_ANON_KEY = supabaseConfig.anonKey;
+
+if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+    alert('Missing Supabase config. Please update supabase-config.js');
+    throw new Error('Supabase config missing');
+}
+
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // ===== Auth UI elements =====
@@ -81,22 +88,29 @@ modalTabs.forEach(tab => {
 loginForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     loginError.textContent = '';
+    signupError.textContent = '';
+    signupSuccess.textContent = '';
     const btn = document.getElementById('login-submit-btn');
     btn.textContent = 'Signing in...';
     btn.disabled = true;
 
-    const { error } = await supabase.auth.signInWithPassword({
-        email:    document.getElementById('login-email').value.trim(),
-        password: document.getElementById('login-password').value,
-    });
+    try {
+        const { error } = await supabase.auth.signInWithPassword({
+            email: document.getElementById('login-email').value.trim(),
+            password: document.getElementById('login-password').value,
+        });
 
-    btn.textContent = 'Log In';
-    btn.disabled = false;
+        if (error) {
+            loginError.textContent = error.message;
+            return;
+        }
 
-    if (error) {
-        loginError.textContent = error.message;
-    } else {
         window.location.href = 'dashboard.html';
+    } catch (error) {
+        loginError.textContent = error?.message || 'Unable to sign in right now. Please try again.';
+    } finally {
+        btn.textContent = 'Log In';
+        btn.disabled = false;
     }
 });
 
@@ -108,20 +122,39 @@ signupForm.addEventListener('submit', async (e) => {
     const btn = document.getElementById('signup-submit-btn');
     btn.textContent = 'Creating account...';
     btn.disabled = true;
+    const password = document.getElementById('signup-password').value;
 
-    const { error } = await supabase.auth.signUp({
-        email:    document.getElementById('signup-email').value.trim(),
-        password: document.getElementById('signup-password').value,
-    });
+    if (password.length < 6) {
+        signupError.textContent = 'Password must be at least 6 characters.';
+        btn.textContent = 'Create Account';
+        btn.disabled = false;
+        return;
+    }
 
-    btn.textContent = 'Create Account';
-    btn.disabled = false;
+    try {
+        const { data, error } = await supabase.auth.signUp({
+            email: document.getElementById('signup-email').value.trim(),
+            password,
+        });
 
-    if (error) {
-        signupError.textContent = error.message;
-    } else {
+        if (error) {
+            signupError.textContent = error.message;
+            return;
+        }
+
+        if (data?.session) {
+            window.location.href = 'dashboard.html';
+            return;
+        }
+
         signupSuccess.textContent = 'Account created! Check your email to confirm, then log in.';
         signupForm.reset();
+        switchTab('login');
+    } catch (error) {
+        signupError.textContent = error?.message || 'Unable to create account right now. Please try again.';
+    } finally {
+        btn.textContent = 'Create Account';
+        btn.disabled = false;
     }
 });
 
@@ -132,13 +165,21 @@ logoutBtn.addEventListener('click', async () => {
 });
 
 // Auth state
-supabase.auth.onAuthStateChange((_event, session) => {
+supabase.auth.onAuthStateChange((event, session) => {
     updateNavForUser(session?.user ?? null);
+
+    if (event === 'SIGNED_IN' && session?.user) {
+        window.location.href = 'dashboard.html';
+    }
 });
 
 // Session on load
 supabase.auth.getSession().then(({ data: { session } }) => {
     updateNavForUser(session?.user ?? null);
+
+    if (session?.user) {
+        window.location.href = 'dashboard.html';
+    }
 });
 
 // Hook pricing/hero "Get Started" buttons to open signup modal
