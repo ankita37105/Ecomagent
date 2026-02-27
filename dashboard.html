@@ -3,322 +3,585 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard — EcomAgent</title>
+    <title>API Docs &mdash; EcomAgent</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <style>
         *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
         :root {
-            --bg-primary: #0a0a0f;
-            --bg-secondary: #12121a;
-            --bg-card: #16161f;
-            --border: #1e1e2e;
-            --border-hover: #2a2a3e;
-            --text-primary: #f0f0f5;
-            --text-secondary: #8888a0;
-            --accent: #7c5cfc;
-            --accent-light: #9b7eff;
-            --radius: 12px;
-            --radius-lg: 20px;
+            --bg: #f5f7ff;
+            --card: #ffffff;
+            --border: #e2e8ff;
+            --border-hover: #c7d0fb;
+            --text: #0f172a;
+            --muted: #4b5563;
+            --soft: #6b7280;
+            --accent: #5b4bf9;
+            --accent-light: #7264ff;
+            --accent-soft: #eef0ff;
+            --code-bg: #0d1117;
+            --code-text: #e2e8f0;
+            --radius: 14px;
+            --radius-sm: 10px;
             --transition: 0.2s ease;
         }
 
         body {
             font-family: 'Inter', -apple-system, sans-serif;
-            background: var(--bg-primary);
-            color: var(--text-primary);
+            color: var(--text);
+            background: radial-gradient(ellipse at top, #ecefff 0%, #f5f7ff 50%, #f8f9ff 100%);
             min-height: 100vh;
+            line-height: 1.6;
         }
 
-        .layout { display: flex; min-height: 100vh; }
+        a { color: inherit; text-decoration: none; }
+        ul { list-style: none; }
 
-        .sidebar {
-            width: 260px;
-            border-right: 1px solid var(--border);
-            background: var(--bg-secondary);
-            padding: 24px 0;
-            position: fixed;
+        /* Topbar */
+        .topbar {
+            position: sticky;
             top: 0;
-            bottom: 0;
-            left: 0;
-            display: flex;
-            flex-direction: column;
+            z-index: 100;
+            background: rgba(245, 247, 255, 0.92);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border);
         }
 
-        .logo {
+        .topbar-inner {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 0 24px;
             display: flex;
             align-items: center;
-            gap: 8px;
-            font-size: 1.2rem;
-            font-weight: 700;
-            padding: 0 24px 30px;
+            gap: 24px;
+            height: 60px;
         }
 
-        .logo-dot { color: var(--accent); }
-
-        .menu-label {
-            color: var(--text-secondary);
-            font-size: 0.75rem;
-            text-transform: uppercase;
-            letter-spacing: 0.08em;
-            padding: 0 24px;
-            margin-bottom: 8px;
+        .brand {
+            font-weight: 800;
+            font-size: 1.15rem;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-shrink: 0;
         }
 
-        .menu-item {
-            width: 100%;
-            text-align: left;
-            border: none;
-            background: transparent;
-            color: var(--text-secondary);
-            padding: 12px 24px;
-            font-size: 0.95rem;
-            font-family: inherit;
-            cursor: pointer;
+        .brand .dot { color: var(--accent); }
+
+        .topbar-nav { display: flex; gap: 4px; flex: 1; }
+
+        .topbar-nav a {
+            color: var(--muted);
+            font-size: 0.9rem;
+            font-weight: 500;
+            padding: 6px 10px;
+            border-radius: 8px;
             transition: all var(--transition);
-            border-left: 3px solid transparent;
         }
 
-        .menu-item:hover {
-            color: var(--text-primary);
-            background: rgba(124, 92, 252, 0.06);
-        }
+        .topbar-nav a:hover { color: var(--accent); background: var(--accent-soft); }
 
-        .menu-item.active {
-            color: var(--accent-light);
-            background: rgba(124, 92, 252, 0.1);
-            border-left-color: var(--accent);
-        }
+        .topbar-actions { display: flex; gap: 8px; flex-shrink: 0; }
 
-        .sidebar-footer {
-            margin-top: auto;
-            border-top: 1px solid var(--border);
-            padding: 18px 24px;
-        }
-
-        .email {
-            color: var(--text-secondary);
-            font-size: 0.85rem;
-            margin-bottom: 10px;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        .logout-btn {
-            border: none;
-            background: transparent;
-            color: #f87171;
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 16px;
+            border-radius: var(--radius-sm);
+            font-size: 0.88rem;
+            font-weight: 600;
             cursor: pointer;
             font-family: inherit;
-            font-size: 0.85rem;
+            transition: all var(--transition);
+            border: 1px solid var(--border-hover);
+            background: var(--card);
+            color: var(--text);
         }
 
-        .main {
-            margin-left: 260px;
-            width: calc(100% - 260px);
-            padding: 32px;
+        .btn:hover { border-color: var(--accent); color: var(--accent); }
+
+        .btn-primary {
+            background: var(--accent);
+            color: #fff;
+            border-color: var(--accent);
+            box-shadow: 0 4px 16px rgba(91, 75, 249, 0.3);
         }
 
-        .topbar {
+        .btn-primary:hover { background: var(--accent-light); color: #fff; border-color: var(--accent-light); }
+
+        /* Hero */
+        .hero {
+            text-align: center;
+            padding: 64px 24px 48px;
+            max-width: 780px;
+            margin: 0 auto;
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            background: var(--accent-soft);
+            color: var(--accent);
+            border: 1px solid #d3d0fe;
+            padding: 6px 14px;
+            border-radius: 999px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            margin-bottom: 18px;
+        }
+
+        .badge-dot { width: 7px; height: 7px; background: #22c55e; border-radius: 50%; }
+
+        .hero h1 {
+            font-size: clamp(1.9rem, 4vw, 3rem);
+            font-weight: 800;
+            line-height: 1.12;
+            letter-spacing: -0.03em;
+            margin-bottom: 14px;
+        }
+
+        .hero p { color: var(--muted); font-size: 1.05rem; max-width: 640px; margin: 0 auto; }
+
+        /* Page layout */
+        .page {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 0 24px 80px;
+            display: grid;
+            grid-template-columns: 230px 1fr;
+            gap: 24px;
+            align-items: start;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            position: sticky;
+            top: 76px;
+            background: var(--card);
             border: 1px solid var(--border);
-            background: var(--bg-card);
             border-radius: var(--radius);
-            padding: 16px 20px;
-            margin-bottom: 20px;
+            padding: 18px;
         }
 
-        .topbar h1 { font-size: 1.15rem; margin-bottom: 4px; }
-        .topbar p { color: var(--text-secondary); font-size: 0.9rem; }
+        .sidebar-title {
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.07em;
+            color: var(--soft);
+            margin-bottom: 12px;
+        }
 
-        .section {
+        .sidebar ul { display: grid; gap: 2px; }
+
+        .sidebar a {
+            display: block;
+            padding: 7px 10px;
+            border-radius: 8px;
+            color: var(--muted);
+            font-size: 0.88rem;
+            font-weight: 500;
+            transition: all var(--transition);
+        }
+
+        .sidebar a:hover { background: var(--accent-soft); color: var(--accent); }
+        .sidebar a.active { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+
+        /* Content cards */
+        .content { display: grid; gap: 16px; }
+
+        .card {
+            background: var(--card);
             border: 1px solid var(--border);
-            background: var(--bg-card);
-            border-radius: var(--radius-lg);
+            border-radius: var(--radius);
             padding: 24px;
         }
 
-        .section h2 { font-size: 1.4rem; margin-bottom: 10px; }
-        .section p { color: var(--text-secondary); line-height: 1.7; }
+        .card-title { font-size: 1.25rem; font-weight: 700; margin-bottom: 6px; }
+        .card-sub { color: var(--muted); font-size: 0.92rem; margin-bottom: 16px; }
 
-        .hidden { display: none; }
+        /* Endpoint pill */
+        .endpoint-box {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: #f0f2ff;
+            border: 1px solid var(--border-hover);
+            border-radius: var(--radius-sm);
+            padding: 12px 16px;
+            margin-bottom: 8px;
+        }
+
+        .ep-label {
+            font-size: 0.78rem;
+            font-weight: 700;
+            color: var(--accent);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            white-space: nowrap;
+        }
+
+        .ep-url {
+            font-family: 'JetBrains Mono', Consolas, monospace;
+            font-size: 0.9rem;
+            color: var(--text);
+            word-break: break-all;
+        }
 
         .notice {
-            margin-top: 14px;
-            border: 1px solid var(--border-hover);
-            background: var(--bg-secondary);
-            padding: 14px;
-            border-radius: 10px;
-            color: var(--text-primary);
+            background: var(--accent-soft);
+            border: 1px solid #d3d0fe;
+            border-radius: var(--radius-sm);
+            padding: 10px 14px;
+            font-size: 0.88rem;
+            color: #2e2b6c;
+            margin-top: 10px;
         }
 
-        .notice a { color: var(--accent-light); }
+        .notice a { color: var(--accent); font-weight: 600; }
 
-        .endpoint {
-            margin-top: 14px;
-            background: var(--bg-secondary);
-            border: 1px solid var(--border-hover);
-            border-radius: 10px;
-            padding: 12px;
-            font-family: monospace;
-            font-size: 0.9rem;
-            overflow-x: auto;
-        }
-
-        .doc-tabs {
+        /* Tabs */
+        .tabs {
             display: flex;
+            gap: 4px;
             flex-wrap: wrap;
-            gap: 8px;
-            margin: 20px 0;
+            margin-bottom: 16px;
+            padding: 4px;
+            background: #f0f2ff;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border);
         }
 
-        .doc-tab {
-            border: 1px solid var(--border-hover);
-            background: var(--bg-secondary);
-            color: var(--text-secondary);
-            padding: 8px 12px;
+        .tab {
+            padding: 8px 14px;
             border-radius: 8px;
+            font-size: 0.88rem;
+            font-weight: 600;
             cursor: pointer;
+            border: none;
+            background: transparent;
+            color: var(--muted);
             font-family: inherit;
+            transition: all var(--transition);
         }
 
-        .doc-tab.active {
-            color: var(--accent-light);
-            border-color: var(--accent);
-            background: rgba(124, 92, 252, 0.1);
-        }
+        .tab:hover { color: var(--accent); background: rgba(91,75,249,0.06); }
+        .tab.active { background: var(--card); color: var(--accent); box-shadow: 0 1px 6px rgba(0,0,0,0.08); }
 
-        .doc-panel { display: none; }
-        .doc-panel.active { display: block; }
+        .tab-panel { display: none; }
+        .tab-panel.active { display: block; }
 
-        .doc-panel h3 {
-            font-size: 1.05rem;
-            margin: 14px 0 8px;
-            color: var(--accent-light);
-        }
-
-        .code {
-            margin: 10px 0 14px;
-            border: 1px solid var(--border-hover);
-            border-radius: 10px;
+        /* Code blocks */
+        .code-block {
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
             overflow: hidden;
+            margin-bottom: 16px;
         }
 
         .code-head {
-            background: var(--bg-secondary);
-            color: var(--text-secondary);
-            font-size: 0.8rem;
-            padding: 8px 12px;
-            border-bottom: 1px solid var(--border-hover);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: #f8f9ff;
+            border-bottom: 1px solid var(--border);
+            padding: 8px 14px;
         }
+
+        .code-lang {
+            font-size: 0.78rem;
+            font-weight: 600;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        .copy-btn {
+            font-size: 0.76rem;
+            font-weight: 600;
+            color: var(--accent);
+            cursor: pointer;
+            padding: 3px 8px;
+            border: 1px solid var(--border-hover);
+            border-radius: 6px;
+            background: none;
+            font-family: inherit;
+            transition: all var(--transition);
+        }
+
+        .copy-btn:hover { background: var(--accent-soft); }
 
         pre {
             margin: 0;
-            padding: 14px;
-            background: #0d1117;
-            color: #c9d1d9;
+            padding: 14px 16px;
+            background: var(--code-bg);
+            color: var(--code-text);
+            font-family: 'JetBrains Mono', Consolas, monospace;
+            font-size: 0.84rem;
+            line-height: 1.55;
             overflow-x: auto;
             white-space: pre;
+        }
+
+        .section-label {
             font-size: 0.85rem;
-            line-height: 1.5;
+            font-weight: 700;
+            color: var(--accent);
+            margin: 18px 0 8px;
         }
 
-        .resource-grid {
+        /* 3-step grid */
+        .steps-grid {
             display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
+            grid-template-columns: repeat(3, minmax(0,1fr));
             gap: 12px;
-            margin-top: 18px;
+            margin-top: 16px;
         }
 
-        .resource-card {
-            border: 1px solid var(--border-hover);
-            border-radius: 10px;
-            padding: 12px;
-            background: var(--bg-secondary);
+        .step-card {
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: 16px;
+            background: #fafbff;
         }
 
-        .resource-card h4 { color: var(--accent-light); margin-bottom: 4px; }
-
-        #loading {
-            position: fixed;
-            inset: 0;
-            display: grid;
-            place-items: center;
-            background: var(--bg-primary);
-            z-index: 100;
-        }
-
-        .spinner {
-            width: 38px;
-            height: 38px;
-            border: 3px solid var(--border-hover);
-            border-top-color: var(--accent);
+        .step-num {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 28px;
+            height: 28px;
+            background: var(--accent);
+            color: #fff;
             border-radius: 50%;
-            animation: spin 0.8s linear infinite;
+            font-size: 0.82rem;
+            font-weight: 800;
+            margin-bottom: 10px;
         }
 
-        @keyframes spin { to { transform: rotate(360deg); } }
+        .step-card h4 { font-size: 0.95rem; margin-bottom: 5px; }
+        .step-card p { color: var(--muted); font-size: 0.88rem; }
+
+        .mono-note {
+            font-family: 'JetBrains Mono', Consolas, monospace;
+            font-size: 0.83rem;
+            color: #27325f;
+            background: #f0f2ff;
+            border: 1px solid var(--border-hover);
+            border-radius: 8px;
+            padding: 8px 10px;
+            margin-top: 8px;
+        }
+
+        /* Plans grid */
+        .plans-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0,1fr));
+            gap: 10px;
+            margin-top: 16px;
+        }
+
+        .plan-card {
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            background: #fafbff;
+            padding: 14px;
+        }
+
+        .plan-card.highlight { border-color: var(--accent); background: var(--accent-soft); }
+        .plan-name { font-weight: 700; font-size: 0.95rem; margin-bottom: 2px; }
+        .plan-price { font-size: 1.5rem; font-weight: 800; color: var(--accent); margin-bottom: 8px; }
+        .plan-price span { font-size: 0.85rem; color: var(--muted); font-weight: 500; }
+        .plan-card ul { display: grid; gap: 4px; }
+
+        .plan-card li {
+            font-size: 0.85rem;
+            color: var(--muted);
+            padding-left: 14px;
+            position: relative;
+        }
+
+        .plan-card li::before {
+            content: '\2713';
+            position: absolute;
+            left: 0;
+            color: var(--accent);
+            font-weight: 700;
+            font-size: 0.8rem;
+        }
+
+        /* Footer */
+        .footer {
+            border-top: 1px solid var(--border);
+            padding: 24px;
+            text-align: center;
+            font-size: 0.85rem;
+            color: var(--muted);
+        }
+
+        .footer a { color: var(--accent); }
 
         @media (max-width: 900px) {
+            .page { grid-template-columns: 1fr; }
+            .sidebar { position: static; }
+            .steps-grid { grid-template-columns: 1fr 1fr; }
+            .plans-grid { grid-template-columns: 1fr 1fr; }
+            .topbar-nav { display: none; }
+        }
+
+        @media (max-width: 640px) {
+            .page { padding: 0 14px 60px; }
+            .card { padding: 18px 14px; }
+            .card-title { font-size: 1.1rem; }
+
+            /* scrollable tabs on phone */
+            .tabs {
+                overflow-x: auto;
+                flex-wrap: nowrap;
+                -webkit-overflow-scrolling: touch;
+                scrollbar-width: none;
+                padding: 4px;
+            }
+            .tabs::-webkit-scrollbar { display: none; }
+            .tab { white-space: nowrap; flex-shrink: 0; font-size: 0.83rem; padding: 7px 11px; }
+
+            /* make code blocks scroll sideways */
+            pre { font-size: 0.78rem; }
+            .code-block { overflow: hidden; }
+
+            /* endpoint box stacks on phone */
+            .endpoint-box { flex-direction: column; align-items: flex-start; gap: 4px; }
+            .ep-url { font-size: 0.82rem; }
+
+            /* grids collapse */
+            .steps-grid { grid-template-columns: 1fr; }
+            .plans-grid { grid-template-columns: 1fr 1fr; }
+
+            /* hero */
+            .hero { padding: 36px 14px 26px; }
+            .hero h1 { font-size: 1.6rem; }
+            .hero p { font-size: 0.95rem; }
+
+            /* topbar */
+            .topbar-inner { gap: 10px; }
+            .topbar-actions .btn:not(.btn-primary) { display: none; }
+
+            /* sidebar hidden on mobile */
             .sidebar { display: none; }
-            .main { margin-left: 0; width: 100%; padding: 16px; }
-            .resource-grid { grid-template-columns: 1fr; }
+        }
+
+        @media (max-width: 400px) {
+            .plans-grid { grid-template-columns: 1fr; }
+            .topbar-actions { gap: 4px; }
+            .btn { padding: 7px 10px; font-size: 0.82rem; }
         }
     </style>
 </head>
 <body>
-<div id="loading"><div class="spinner"></div></div>
 
-<div class="layout" id="app" style="display:none;">
+<header class="topbar">
+    <div class="topbar-inner">
+        <a class="brand" href="index.html">&#9889; ecomagent<span class="dot">.in</span></a>
+        <nav class="topbar-nav">
+            <a href="#quickstart">Quickstart</a>
+            <a href="#api-endpoint">Endpoint</a>
+            <a href="#examples">Examples</a>
+            <a href="#claude-code">Claude Code</a>
+            <a href="#plans">Plans</a>
+        </nav>
+        <div class="topbar-actions">
+            <a class="btn" href="login.html">Log In</a>
+            <a class="btn btn-primary" href="signup.html">Get Started</a>
+        </div>
+    </div>
+</header>
+
+<section class="hero">
+    <div class="badge"><span class="badge-dot"></span> Public Documentation</div>
+    <h1>&#128218; EcomAgent API Docs</h1>
+    <p>Learn how to integrate Claude Opus + Sonnet 4.6 into your projects and Claude Code. No login needed.</p>
+</section>
+
+<div class="page">
     <aside class="sidebar">
-        <div class="logo">
-            <span>⚡ ecomagent<span class="logo-dot">.in</span></span>
-        </div>
-
-        <div class="menu-label">Menu</div>
-        <button class="menu-item active" data-section="api-key">Get API Key</button>
-        <button class="menu-item" data-section="documentation">Documentation</button>
-
-        <div class="sidebar-footer">
-            <div class="email" id="user-email">Loading...</div>
-            <button id="logout-btn" class="logout-btn">Sign out</button>
-        </div>
+        <div class="sidebar-title">On this page</div>
+        <ul>
+            <li><a href="#quickstart">3-Step Quickstart</a></li>
+            <li><a href="#api-endpoint">API Endpoint</a></li>
+            <li><a href="#examples">Code Examples</a></li>
+            <li><a href="#claude-code">Claude Code Setup</a></li>
+            <li><a href="#plans">Plan Limits</a></li>
+            <li><a href="#api-key">Get API Key</a></li>
+        </ul>
     </aside>
 
-    <main class="main">
-        <div class="topbar">
-            <h1 id="welcome">Dashboard</h1>
-            <p>Access API setup and documentation</p>
-        </div>
+    <main class="content">
 
-        <section id="api-key" class="section">
-            <h2>Get API Key</h2>
-            <p>To receive your API key, please contact us directly.</p>
-            <div class="notice">
-                Contact: <a href="https://t.me/legit_is_back" target="_blank" rel="noopener noreferrer">t.me/legit_is_back</a>
+        <!-- Quickstart -->
+        <section class="card" id="quickstart">
+            <div class="card-title">3-Step Quickstart</div>
+            <div class="card-sub">Integrate EcomAgent in minutes. Works directly inside Claude Code.</div>
+            <div class="steps-grid">
+                <div class="step-card">
+                    <div class="step-num">1</div>
+                    <h4>Open your settings.json</h4>
+                    <p>Claude Code config file on your machine.</p>
+                    <div class="mono-note">Windows:<br>%USERPROFILE%\.claude\settings.json<br><br>macOS/Linux:<br>~/.claude/settings.json</div>
+                </div>
+                <div class="step-card">
+                    <div class="step-num">2</div>
+                    <h4>Paste endpoint + API key</h4>
+                    <p>Add EcomAgent URL and your key in the <code>env</code> block.</p>
+                    <div class="mono-note">"ANTHROPIC_BASE_URL": "https://api.ecomagent.in/"<br>"ANTHROPIC_AUTH_TOKEN": "YOUR_API_KEY"</div>
+                </div>
+                <div class="step-card">
+                    <div class="step-num">3</div>
+                    <h4>Use Claude Code normally</h4>
+                    <p>Vibe-code as usual &mdash; nothing else changes.</p>
+                </div>
             </div>
         </section>
 
-        <section id="documentation" class="section hidden">
-            <h2>API Documentation</h2>
-            <p>Use these examples to integrate with EcomAgent API.</p>
+        <!-- API Endpoint -->
+        <section class="card" id="api-endpoint">
+            <div class="card-title">&#128279; API Endpoint</div>
+            <div class="card-sub">OpenAI-compatible. Drop-in replacement for the Anthropic API.</div>
+            <div class="endpoint-box">
+                <span class="ep-label">Base URL</span>
+                <span class="ep-url">https://api.ecomagent.in/v1</span>
+            </div>
+            <div class="notice">
+                Replace <strong>YOUR_API_KEY</strong> with your active API key. Need one? <a href="https://t.me/legit_is_back" target="_blank" rel="noopener noreferrer">Contact us on Telegram &rarr;</a>
+            </div>
+        </section>
 
-            <div class="endpoint">Base URL: https://api.ecomagent.in/v1</div>
-            <div class="notice">Replace <strong>YOUR_API_KEY</strong> with your active API key.</div>
+        <!-- Code Examples (4 tabs) -->
+        <section class="card" id="examples">
+            <div class="card-title">Code Examples</div>
+            <div class="card-sub">Choose your preferred integration method below.</div>
 
-            <div class="doc-tabs">
-                <button class="doc-tab active" data-doc-tab="curl">cURL Example</button>
-                <button class="doc-tab" data-doc-tab="openai">OpenAI SDK</button>
-                <button class="doc-tab" data-doc-tab="streaming">Streaming Example</button>
-                <button class="doc-tab" data-doc-tab="test">Test Completion</button>
-                <button class="doc-tab" data-doc-tab="claude">Claude Code</button>
+            <div class="tabs">
+                <button class="tab active" data-tab="curl">&#128034; cURL</button>
+                <button class="tab" data-tab="openai">&#128013; OpenAI SDK</button>
+                <button class="tab" data-tab="streaming">&#127754; Streaming</button>
+                <button class="tab" data-tab="test">&#129514; Test Script</button>
             </div>
 
-            <div id="curl" class="doc-panel active">
-                <h3>Basic Chat Completion</h3>
-                <div class="code"><div class="code-head">bash</div><pre>#!/usr/bin/env sh
+            <!-- cURL Tab -->
+            <div class="tab-panel active" id="tab-curl">
+                <div class="section-label">Basic Chat Completion</div>
+                <div class="code-block">
+                    <div class="code-head">
+                        <span class="code-lang">bash</span>
+                        <button class="copy-btn" onclick="copyCode(this)">&#128203; Copy</button>
+                    </div>
+                    <pre>#!/usr/bin/env sh
 
 BASE_URL="https://api.ecomagent.in/v1"
 API_KEY="YOUR_API_KEY"
@@ -327,14 +590,20 @@ curl "$BASE_URL/chat/completions" \
   -H "Authorization: Bearer $API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
-    "model": "claude-sonnet-4.6",
+    "model": "claude-opus-4.6",
     "messages": [
       {"role": "user", "content": "Hello!"}
     ]
-  }'</pre></div>
+  }'</pre>
+                </div>
 
-                <h3>With Streaming</h3>
-                <div class="code"><div class="code-head">bash</div><pre>curl "$BASE_URL/chat/completions" \
+                <div class="section-label">With Streaming</div>
+                <div class="code-block">
+                    <div class="code-head">
+                        <span class="code-lang">bash</span>
+                        <button class="copy-btn" onclick="copyCode(this)">&#128203; Copy</button>
+                    </div>
+                    <pre>curl "$BASE_URL/chat/completions" \
   -H "Authorization: Bearer $API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -343,10 +612,13 @@ curl "$BASE_URL/chat/completions" \
       {"role": "user", "content": "Hello!"}
     ],
     "stream": true
-  }'</pre></div>
+  }'</pre>
+                </div>
 
-                <h3>Expected Output</h3>
-                <div class="code"><div class="code-head">json</div><pre>{
+                <div class="section-label">&#128228; Expected JSON Output</div>
+                <div class="code-block">
+                    <div class="code-head"><span class="code-lang">json</span></div>
+                    <pre>{
   "choices": [
     {
       "finish_reason": "stop",
@@ -367,12 +639,19 @@ curl "$BASE_URL/chat/completions" \
     "total_tokens": 29
   },
   "model": "claude-opus-4.6"
-}</pre></div>
+}</pre>
+                </div>
             </div>
 
-            <div id="openai" class="doc-panel">
-                <h3>OpenAI Python SDK Example</h3>
-                <div class="code"><div class="code-head">python</div><pre>from openai import OpenAI
+            <!-- OpenAI SDK Tab -->
+            <div class="tab-panel" id="tab-openai">
+                <div class="section-label">OpenAI Python SDK</div>
+                <div class="code-block">
+                    <div class="code-head">
+                        <span class="code-lang">python</span>
+                        <button class="copy-btn" onclick="copyCode(this)">&#128203; Copy</button>
+                    </div>
+                    <pre>from openai import OpenAI
 
 BASE_URL = "https://api.ecomagent.in/v1"
 API_KEY = "YOUR_API_KEY"
@@ -395,15 +674,25 @@ def main():
 
 
 if __name__ == "__main__":
-    main()</pre></div>
+    main()</pre>
+                </div>
 
-                <h3>Expected Output</h3>
-                <div class="code"><div class="code-head">text</div><pre>Hello! How are you doing today? Is there something I can help you with?</pre></div>
+                <div class="section-label">&#128228; Expected Output</div>
+                <div class="code-block">
+                    <div class="code-head"><span class="code-lang">text</span></div>
+                    <pre>Hello! How are you doing today? Is there something I can help you with?</pre>
+                </div>
             </div>
 
-            <div id="streaming" class="doc-panel">
-                <h3>Streaming Example</h3>
-                <div class="code"><div class="code-head">python</div><pre>import requests
+            <!-- Streaming Tab -->
+            <div class="tab-panel" id="tab-streaming">
+                <div class="section-label">Streaming with Python requests</div>
+                <div class="code-block">
+                    <div class="code-head">
+                        <span class="code-lang">python</span>
+                        <button class="copy-btn" onclick="copyCode(this)">&#128203; Copy</button>
+                    </div>
+                    <pre>import requests
 
 BASE_URL = "https://api.ecomagent.in/v1"
 API_KEY = "YOUR_API_KEY"
@@ -432,19 +721,29 @@ def main():
 
 
 if __name__ == "__main__":
-    main()</pre></div>
+    main()</pre>
+                </div>
 
-                <h3>Expected Output</h3>
-                <div class="code"><div class="code-head">stream</div><pre>data: {"choices":[{"index":0,"delta":{"content":"Hello! How are","role":"assistant"}}],"created":1769095541,"id":"msg_vrtx_015r8zkxSn7FPCuAziyWJjgp","model":"claude-opus-4.6"}
+                <div class="section-label">&#128228; Expected Streaming Output</div>
+                <div class="code-block">
+                    <div class="code-head"><span class="code-lang">stream chunks</span></div>
+                    <pre>data: {"choices":[{"index":0,"delta":{"content":"Hello! How are","role":"assistant"}}],"created":1769095541,"id":"msg_vrtx_015r8zkxSn7FPCuAziyWJjgp","model":"claude-opus-4.6"}
 
 data: {"choices":[{"index":0,"delta":{"content":" you doing today?","role":"assistant"}}],"created":1769095541,"id":"msg_vrtx_015r8zkxSn7FPCuAziyWJjgp","model":"claude-opus-4.6"}
 
-data: [DONE]</pre></div>
+data: [DONE]</pre>
+                </div>
             </div>
 
-            <div id="test" class="doc-panel">
-                <h3>Test Completion Script</h3>
-                <div class="code"><div class="code-head">python</div><pre>import requests
+            <!-- Test Script Tab -->
+            <div class="tab-panel" id="tab-test">
+                <div class="section-label">Full Test Completion Script</div>
+                <div class="code-block">
+                    <div class="code-head">
+                        <span class="code-lang">python</span>
+                        <button class="copy-btn" onclick="copyCode(this)">&#128203; Copy</button>
+                    </div>
+                    <pre>import requests
 import json
 import time
 
@@ -482,10 +781,13 @@ def run_chat_example():
 
 if __name__ == "__main__":
     time.sleep(2)
-    run_chat_example()</pre></div>
+    run_chat_example()</pre>
+                </div>
 
-                <h3>Expected Output</h3>
-                <div class="code"><div class="code-head">text/json</div><pre>--- Testing Model: claude-opus-4.6 ---
+                <div class="section-label">&#128228; Expected Output</div>
+                <div class="code-block">
+                    <div class="code-head"><span class="code-lang">text / json</span></div>
+                    <pre>--- Testing Model: claude-opus-4.6 ---
 Status Code: 200
 Response Body:
 {
@@ -509,26 +811,37 @@ Response Body:
     "total_tokens": 35
   },
   "model": "claude-opus-4.6"
-}</pre></div>
+}</pre>
+                </div>
+            </div>
+        </section>
+
+        <!-- Claude Code -->
+        <section class="card" id="claude-code">
+            <div class="card-title">&#128187; Claude Code Setup</div>
+            <div class="card-sub">Use EcomAgent API inside Claude Code for unlimited Opus + Sonnet 4.6.</div>
+
+            <div class="section-label">Config file location</div>
+            <div class="endpoint-box" style="flex-direction:column; align-items:flex-start; gap:6px;">
+                <span style="font-size:0.85rem; color:var(--muted);">Windows: <code style="font-family:'JetBrains Mono',monospace; font-size:0.82rem;">%USERPROFILE%\.claude\settings.json</code></span>
+                <span style="font-size:0.85rem; color:var(--muted);">macOS / Linux: <code style="font-family:'JetBrains Mono',monospace; font-size:0.82rem;">~/.claude/settings.json</code></span>
             </div>
 
-            <div id="claude" class="doc-panel">
-                <h3>Claude Code Configuration</h3>
-                <p>Configuration file location:</p>
-                <div class="notice" style="margin-top:8px;">
-                    Windows: %USERPROFILE%\.claude\settings.json<br>
-                    macOS/Linux: ~/.claude/settings.json
+            <div class="section-label">Paste this into settings.json</div>
+            <div class="code-block">
+                <div class="code-head">
+                    <span class="code-lang">json &mdash; settings.json</span>
+                    <button class="copy-btn" onclick="copyCode(this)">&#128203; Copy</button>
                 </div>
-
-                <h3>Configuration Content</h3>
-                <div class="code"><div class="code-head">json</div><pre>{
+                <pre>{
+  
   "env": {
     "ANTHROPIC_BASE_URL": "https://api.ecomagent.in/",
-    "ANTHROPIC_AUTH_TOKEN": "YOUR_API_KEY",
+    "ANTHROPIC_AUTH_TOKEN": "API_key",
     "ANTHROPIC_MODEL": "claude-opus-4.6",
-    "ANTHROPIC_DEFAULT_SONNET_MODEL": "claude-sonnet-4.6",
-    "ANTHROPIC_SMALL_FAST_MODEL": "claude-sonnet-4.6",
-    "ANTHROPIC_DEFAULT_HAIKU_MODEL": "claude-sonnet-4.6",
+    "ANTHROPIC_DEFAULT_SONNET_MODEL": "claude-sonnet-4-6",
+    "ANTHROPIC_SMALL_FAST_MODEL": "claude-opus-4.6",
+    "ANTHROPIC_DEFAULT_HAIKU_MODEL": "claude-opus-4.6",
     "DISABLE_NON_ESSENTIAL_MODEL_CALLS": "1",
     "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
     "CLAUDE_CODE_ATTRIBUTION_HEADER": "0"
@@ -538,84 +851,113 @@ Response Body:
       "WebSearch"
     ]
   }
-}</pre></div>
-                <div class="notice">Replace <strong>YOUR_API_KEY</strong> with your actual API key.</div>
-            </div>
 
-            <div class="resource-grid">
-                <div class="resource-card">
-                    <h4>API Keys</h4>
-                    <p>Get your key from Telegram support.</p>
+}</pre>
+            </div>
+            <div class="notice">Replace <strong>YOUR_API_KEY</strong> with your actual API key.</div>
+        </section>
+
+        <!-- Plans -->
+        <section class="card" id="plans">
+            <div class="card-title">Plan Limits (Monthly)</div>
+            <div class="card-sub">Pick the plan that fits your usage.</div>
+            <div class="plans-grid">
+                <div class="plan-card">
+                    <div class="plan-name">Free Trial</div>
+                    <div class="plan-price">$0<span>/mo</span></div>
+                    <ul>
+                        <li>100k token limit</li>
+                        <li>Opus + Sonnet 4.6</li>
+                        <li>Quick setup</li>
+                    </ul>
                 </div>
-                <div class="resource-card">
-                    <h4>Usage</h4>
-                    <p>Usage stats will be available in a future release.</p>
+                <div class="plan-card highlight">
+                    <div class="plan-name">Premium &#11088;</div>
+                    <div class="plan-price">$99<span>/mo</span></div>
+                    <ul>
+                        <li>Unlimited tokens</li>
+                        <li>3,000 req / day</li>
+                        <li>Claude Code ready</li>
+                    </ul>
+                </div>
+                <div class="plan-card">
+                    <div class="plan-name">Premium+</div>
+                    <div class="plan-price">$149<span>/mo</span></div>
+                    <ul>
+                        <li>Unlimited tokens</li>
+                        <li>6,000 req / day</li>
+                        <li>Priority support</li>
+                    </ul>
+                </div>
+                <div class="plan-card">
+                    <div class="plan-name">Custom</div>
+                    <div class="plan-price" style="font-size:1.1rem; line-height:1.3; padding-top:4px;">Custom<span style="display:block;">/mo</span></div>
+                    <ul>
+                        <li>No token cap</li>
+                        <li>No request limit</li>
+                        <li>Enterprise SLA</li>
+                    </ul>
                 </div>
             </div>
         </section>
+
+        <!-- Get API Key -->
+        <section class="card" id="api-key">
+            <div class="card-title">&#128273; Get Your API Key</div>
+            <div class="card-sub">Keys are issued after plan activation. Contact us on Telegram.</div>
+            <div class="notice">
+                &#128232; Telegram: <a href="https://t.me/legit_is_back" target="_blank" rel="noopener noreferrer">t.me/legit_is_back</a> &mdash; usually replies within minutes.
+            </div>
+            <div style="display:flex; gap:10px; margin-top:14px; flex-wrap:wrap;">
+                <a class="btn btn-primary" href="signup.html">Create Account</a>
+                <a class="btn" href="index.html#pricing">View Plans</a>
+            </div>
+        </section>
+
     </main>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="supabase-config.js"></script>
+<footer class="footer">
+    &copy; 2026 <a href="index.html">ecomagent.in</a> &mdash; Public documentation. No login required.
+</footer>
+
 <script>
-    const menuItems = document.querySelectorAll('.menu-item');
-    const sections = {
-        'api-key': document.getElementById('api-key'),
-        'documentation': document.getElementById('documentation')
-    };
-
-    menuItems.forEach(item => {
-        item.addEventListener('click', () => {
-            menuItems.forEach(i => i.classList.remove('active'));
-            item.classList.add('active');
-            Object.values(sections).forEach(section => section.classList.add('hidden'));
-            sections[item.dataset.section].classList.remove('hidden');
-        });
-    });
-
-    document.querySelectorAll('.doc-tab').forEach(tab => {
-        tab.addEventListener('click', () => {
-            document.querySelectorAll('.doc-tab').forEach(t => t.classList.remove('active'));
-            document.querySelectorAll('.doc-panel').forEach(p => p.classList.remove('active'));
+    // Tab switching
+    document.querySelectorAll('.tab').forEach(function(tab) {
+        tab.addEventListener('click', function() {
+            var parent = tab.closest('.card');
+            parent.querySelectorAll('.tab').forEach(function(t) { t.classList.remove('active'); });
+            parent.querySelectorAll('.tab-panel').forEach(function(p) { p.classList.remove('active'); });
             tab.classList.add('active');
-            document.getElementById(tab.dataset.docTab).classList.add('active');
+            var target = parent.querySelector('#tab-' + tab.dataset.tab);
+            if (target) target.classList.add('active');
         });
     });
 
-    const config = window.ECOM_SUPABASE_CONFIG || {};
-    const canAuth = !!window.supabase?.createClient && !!config.url && !!config.anonKey;
-
-    async function init() {
-        if (!canAuth) {
-            window.location.href = 'login.html';
-            return;
-        }
-
-        const supabase = window.supabase.createClient(config.url, config.anonKey);
-        const { data: { session } } = await supabase.auth.getSession();
-
-        if (!session?.user) {
-            window.location.href = 'login.html';
-            return;
-        }
-
-        const email = session.user.email || '';
-        document.getElementById('user-email').textContent = email;
-        document.getElementById('welcome').textContent = `Welcome, ${email.split('@')[0] || 'User'}`;
-
-        document.getElementById('logout-btn').addEventListener('click', async () => {
-            await supabase.auth.signOut();
-            window.location.href = 'login.html';
+    // Copy to clipboard
+    function copyCode(btn) {
+        var code = btn.closest('.code-block').querySelector('pre').textContent;
+        navigator.clipboard.writeText(code).then(function() {
+            var orig = btn.textContent;
+            btn.textContent = 'Copied!';
+            setTimeout(function() { btn.textContent = orig; }, 1800);
         });
-
-        document.getElementById('loading').style.display = 'none';
-        document.getElementById('app').style.display = 'flex';
     }
 
-    init().catch(() => {
-        window.location.href = 'login.html';
-    });
+    // Sidebar active-link on scroll
+    var sections = document.querySelectorAll('section[id]');
+    var links = document.querySelectorAll('.sidebar a');
+    var obs = new IntersectionObserver(function(entries) {
+        entries.forEach(function(entry) {
+            if (entry.isIntersecting) {
+                links.forEach(function(l) { l.classList.remove('active'); });
+                var a = document.querySelector('.sidebar a[href="#' + entry.target.id + '"]');
+                if (a) a.classList.add('active');
+            }
+        });
+    }, { rootMargin: '-20% 0px -70% 0px' });
+
+    sections.forEach(function(s) { obs.observe(s); });
 </script>
 </body>
 </html>
