@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Dashboard — EcomAgent</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --bg: #f6f8ff;
+            --card: #ffffff;
+            --border: #dde4ff;
+            --text: #121a33;
+            --muted: #5e6786;
+            --accent: #5b4bf9;
+            --accent-2: #7264ff;
+            --soft: #eff1ff;
+            --radius: 16px;
+            --radius-sm: 12px;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background: radial-gradient(ellipse at top, #edf0ff 0%, #f6f8ff 55%, #f8f9ff 100%);
+            color: var(--text);
+            min-height: 100vh;
+        }
+
+        a { color: inherit; text-decoration: none; }
+
+        .layout {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            display: grid;
+            grid-template-columns: 250px 1fr;
+            gap: 18px;
+        }
+
+        .sidebar {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 16px;
+            position: sticky;
+            top: 16px;
+            height: fit-content;
+        }
+
+        .brand {
+            font-size: 1.15rem;
+            font-weight: 800;
+            margin-bottom: 18px;
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+        }
+
+        .brand .dot { color: var(--accent); }
+
+        .section-title {
+            font-size: 0.78rem;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            font-weight: 700;
+            color: var(--muted);
+            margin-bottom: 10px;
+        }
+
+        .nav-list { display: grid; gap: 6px; }
+
+        .nav-btn {
+            width: 100%;
+            border: 1px solid transparent;
+            background: transparent;
+            color: var(--muted);
+            border-radius: 10px;
+            font-family: inherit;
+            font-size: 0.94rem;
+            font-weight: 600;
+            text-align: left;
+            padding: 10px 12px;
+            cursor: pointer;
+        }
+
+        .nav-btn:hover {
+            color: var(--accent);
+            background: var(--soft);
+        }
+
+        .nav-btn.active {
+            color: var(--accent);
+            background: var(--soft);
+            border-color: #d9dcff;
+        }
+
+        .side-footer {
+            margin-top: 16px;
+            padding-top: 14px;
+            border-top: 1px solid var(--border);
+            display: grid;
+            gap: 10px;
+        }
+
+        .user-email {
+            font-size: 0.85rem;
+            color: var(--muted);
+            overflow-wrap: anywhere;
+        }
+
+        .btn {
+            border: 1px solid #cbd4ff;
+            background: #fff;
+            color: var(--text);
+            border-radius: 10px;
+            padding: 9px 12px;
+            font-size: 0.88rem;
+            font-weight: 600;
+            cursor: pointer;
+            font-family: inherit;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        .btn:hover { border-color: var(--accent); color: var(--accent); }
+
+        .btn-primary {
+            background: var(--accent);
+            color: #fff;
+            border-color: var(--accent);
+            box-shadow: 0 8px 20px rgba(91, 75, 249, 0.25);
+        }
+
+        .btn-primary:hover { background: var(--accent-2); color: #fff; border-color: var(--accent-2); }
+
+        .content {
+            display: grid;
+            gap: 14px;
+            align-content: start;
+        }
+
+        .topbar {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 14px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+        }
+
+        .topbar h1 {
+            font-size: 1.3rem;
+            line-height: 1.2;
+        }
+
+        .topbar p {
+            color: var(--muted);
+            font-size: 0.9rem;
+            margin-top: 3px;
+        }
+
+        .mobile-toggle {
+            display: none;
+            border: 1px solid var(--border);
+            background: #fff;
+            border-radius: 10px;
+            width: 40px;
+            height: 40px;
+            cursor: pointer;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            color: var(--text);
+        }
+
+        .panel {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 18px;
+        }
+
+        .panel[hidden] { display: none; }
+
+        .panel h2 {
+            font-size: 1.15rem;
+            margin-bottom: 6px;
+        }
+
+        .panel-sub {
+            color: var(--muted);
+            font-size: 0.92rem;
+            margin-bottom: 14px;
+        }
+
+        .plans {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0,1fr));
+            gap: 12px;
+        }
+
+        .plan {
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            background: #fafbff;
+            padding: 14px;
+            display: grid;
+            gap: 10px;
+        }
+
+        .plan.highlight {
+            border-color: var(--accent);
+            background: #f2f3ff;
+        }
+
+        .plan-name {
+            font-size: 1rem;
+            font-weight: 700;
+        }
+
+        .plan-price {
+            color: var(--accent);
+            font-size: 1.6rem;
+            font-weight: 800;
+        }
+
+        .plan-price span {
+            font-size: 0.82rem;
+            color: var(--muted);
+            font-weight: 500;
+        }
+
+        .plan ul {
+            list-style: none;
+            display: grid;
+            gap: 6px;
+        }
+
+        .plan li {
+            font-size: 0.86rem;
+            color: var(--muted);
+            padding-left: 14px;
+            position: relative;
+        }
+
+        .plan li::before {
+            content: '✓';
+            color: var(--accent);
+            font-weight: 700;
+            position: absolute;
+            left: 0;
+        }
+
+        .doc-card {
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: 14px;
+            background: #fafbff;
+            display: grid;
+            gap: 10px;
+        }
+
+        .doc-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-weight: 700;
+            color: var(--accent);
+            border: 1px solid #cad1ff;
+            border-radius: 10px;
+            padding: 10px 12px;
+            width: fit-content;
+            background: #fff;
+        }
+
+        .doc-link:hover { border-color: var(--accent); }
+
+        @media (max-width: 980px) {
+            .layout {
+                grid-template-columns: 1fr;
+                padding: 14px;
+            }
+
+            .sidebar {
+                position: fixed;
+                z-index: 30;
+                top: 66px;
+                left: 14px;
+                right: 14px;
+                display: none;
+            }
+
+            .sidebar.open { display: block; }
+
+            .mobile-toggle { display: inline-flex; }
+
+            .plans { grid-template-columns: 1fr 1fr; }
+        }
+
+        @media (max-width: 680px) {
+            .topbar {
+                padding: 12px;
+                align-items: flex-start;
+            }
+
+            .topbar h1 { font-size: 1.1rem; }
+            .topbar p { font-size: 0.85rem; }
+
+            .panel {
+                padding: 14px;
+            }
+
+            .plans { grid-template-columns: 1fr; }
+
+            .btn,
+            .doc-link {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="layout">
+    <aside class="sidebar" id="sidebar">
+        <a href="index.html" class="brand">⚡ ecomagent<span class="dot">.in</span></a>
+        <div class="section-title">Sections</div>
+        <div class="nav-list">
+            <button class="nav-btn active" data-section="section-dashboard">Dashboard</button>
+            <button class="nav-btn" data-section="section-docs">Documentation</button>
+        </div>
+
+        <div class="side-footer">
+            <div id="user-email" class="user-email"></div>
+            <button id="logout-btn" class="btn">Log Out</button>
+        </div>
+    </aside>
+
+    <main class="content">
+        <header class="topbar">
+            <div>
+                <h1>Welcome to your dashboard</h1>
+                <p>Manage plans and open official docs from one place.</p>
+            </div>
+            <button class="mobile-toggle" id="mobile-toggle" aria-label="Toggle sidebar">☰</button>
+        </header>
+
+        <section class="panel" id="section-dashboard">
+            <h2>Plans</h2>
+            <p class="panel-sub">Tap Activate Now to contact support and purchase your plan.</p>
+            <div class="plans">
+                <article class="plan">
+                    <div class="plan-name">Free Trial</div>
+                    <div class="plan-price">$0 <span>/ month</span></div>
+                    <ul>
+                        <li>100k token limit</li>
+                        <li>Claude Opus + Sonnet 4.6</li>
+                    </ul>
+                    <a class="btn btn-primary" href="https://t.me/legit_is_back" target="_blank" rel="noopener noreferrer">Activate Now</a>
+                </article>
+
+                <article class="plan highlight">
+                    <div class="plan-name">Premium</div>
+                    <div class="plan-price">$99 <span>/ month</span></div>
+                    <ul>
+                        <li>Unlimited tokens</li>
+                        <li>3,000 requests/day</li>
+                    </ul>
+                    <a class="btn btn-primary" href="https://t.me/legit_is_back" target="_blank" rel="noopener noreferrer">Activate Now</a>
+                </article>
+
+                <article class="plan">
+                    <div class="plan-name">Premium+</div>
+                    <div class="plan-price">$149 <span>/ month</span></div>
+                    <ul>
+                        <li>Unlimited tokens</li>
+                        <li>6,000 requests/day</li>
+                    </ul>
+                    <a class="btn btn-primary" href="https://t.me/legit_is_back" target="_blank" rel="noopener noreferrer">Activate Now</a>
+                </article>
+
+                <article class="plan">
+                    <div class="plan-name">Custom</div>
+                    <div class="plan-price">Custom <span>/ month</span></div>
+                    <ul>
+                        <li>No limits</li>
+                        <li>Enterprise support</li>
+                    </ul>
+                    <a class="btn btn-primary" href="https://t.me/legit_is_back" target="_blank" rel="noopener noreferrer">Activate Now</a>
+                </article>
+            </div>
+        </section>
+
+        <section class="panel" id="section-docs" hidden>
+            <h2>Documentation</h2>
+            <p class="panel-sub">Use the official public documentation page for setup, API examples, and Claude Code configuration.</p>
+            <div class="doc-card">
+                <div style="font-size:0.92rem; color:var(--muted);">Official docs are public and accessible without login.</div>
+                <a class="doc-link" href="dashboard.html">Open Official Docs →</a>
+            </div>
+        </section>
+    </main>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase-config.js"></script>
+<script>
+    const config = window.ECOM_SUPABASE_CONFIG || {};
+
+    if (!window.supabase?.createClient || !config.url || !config.anonKey) {
+        window.location.href = 'login.html';
+    }
+
+    const supabase = window.supabase.createClient(config.url, config.anonKey);
+    const userEmail = document.getElementById('user-email');
+
+    async function ensureSession() {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.user) {
+            window.location.href = 'login.html';
+            return;
+        }
+        userEmail.textContent = session.user.email || '';
+    }
+
+    ensureSession();
+
+    document.getElementById('logout-btn').addEventListener('click', async () => {
+        await supabase.auth.signOut();
+        window.location.href = 'login.html';
+    });
+
+    document.querySelectorAll('.nav-btn').forEach((button) => {
+        button.addEventListener('click', () => {
+            document.querySelectorAll('.nav-btn').forEach((btn) => btn.classList.remove('active'));
+            button.classList.add('active');
+
+            const target = button.getAttribute('data-section');
+            document.querySelectorAll('.panel').forEach((panel) => {
+                panel.hidden = panel.id !== target;
+            });
+
+            const sidebar = document.getElementById('sidebar');
+            if (sidebar.classList.contains('open')) sidebar.classList.remove('open');
+        });
+    });
+
+    document.getElementById('mobile-toggle').addEventListener('click', () => {
+        document.getElementById('sidebar').classList.toggle('open');
+    });
+</script>
+</body>
+</html>

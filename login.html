@@ -61,7 +61,7 @@
             const supabase = window.supabase.createClient(config.url, config.anonKey);
 
             supabase.auth.getSession().then(({ data: { session } }) => {
-                if (session?.user) window.location.href = 'dashboard.html';
+                if (session?.user) window.location.href = 'user-dashboard.html';
             });
 
             document.getElementById('login-form').addEventListener('submit', async (e) => {
@@ -83,7 +83,7 @@
                     return;
                 }
 
-                window.location.href = 'dashboard.html';
+                window.location.href = 'user-dashboard.html';
             });
         }
     </script>

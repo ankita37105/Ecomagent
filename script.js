@@ -78,7 +78,7 @@ async function redirectForPlanActivation() {
 
     try {
         const { data: { session } } = await supabaseClient.auth.getSession();
-        window.location.href = session?.user ? 'dashboard.html' : 'login.html';
+        window.location.href = session?.user ? 'user-dashboard.html' : 'login.html';
     } catch {
         window.location.href = 'login.html';
     }
