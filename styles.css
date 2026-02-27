@@ -379,6 +379,8 @@ ul {
     border-radius: var(--radius-lg);
     background: #fff;
     padding: 26px;
+    opacity: 1;
+    transform: none;
 }
 
 .setup-step {
@@ -723,6 +725,11 @@ ul {
 .reveal.visible {
     opacity: 1;
     transform: translateY(0);
+}
+
+.setup-card.reveal {
+    opacity: 1;
+    transform: none;
 }
 
 /* ===== Responsive ===== */
