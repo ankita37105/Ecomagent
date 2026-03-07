@@ -1,0 +1,19 @@
+# EcomAgent
+> Unlimited Claude API access for Claude Code
+
+## Primary URLs
+- Homepage: https://ecomagent.in
+- Documentation: https://ecomagent.in/docs
+- Blog: https://ecomagent.in/blog
+- Dashboard: https://ecomagent.in/dashboard
+
+## Key Topics
+- Claude Code setup and configuration
+- API endpoint: https://api.ecomagent.in/v1
+- Free trial: 100 requests, 10M tokens
+- Paid plans: unlimited tokens from $69/mo
+- Claude Opus and Sonnet 4.6 models
+- Crypto payments via CoinPayments
+
+## Support
+- Telegram: https://t.me/legit_is_back
