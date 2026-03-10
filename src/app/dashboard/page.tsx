@@ -6,7 +6,7 @@ import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import {
   Zap, LayoutDashboard, Key, BarChart3, CreditCard, FileText,
-  LogOut, Copy, Check, Eye, EyeOff, RefreshCw, Plus, ExternalLink,
+  LogOut, Copy, Check, Eye, EyeOff, RefreshCw, Plus, ExternalLink, LifeBuoy,
   Menu, X, Activity, Cpu, TrendingUp, Shield, ChevronRight,
 } from "lucide-react";
 
@@ -354,6 +354,20 @@ export default function DashboardPage() {
               Documentation
               <ExternalLink size={11} style={{ marginLeft: "auto" }} />
             </Link>
+            <a
+              href="https://t.me/legit_is_back"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                display: "flex", alignItems: "center", gap: 10, padding: "9px 12px",
+                borderRadius: 9, fontSize: 13, color: "#555", textDecoration: "none",
+                transition: "color 0.15s",
+              }}
+            >
+              <LifeBuoy size={15} />
+              Support
+              <ExternalLink size={11} style={{ marginLeft: "auto" }} />
+            </a>
           </div>
         </nav>
 
@@ -412,7 +426,7 @@ export default function DashboardPage() {
               Contact Support for full premium features unlock.
             </p>
             <a
-              href="https://t.me/Legit_is_back"
+              href="https://t.me/legit_is_back"
               target="_blank"
               rel="noopener noreferrer"
               style={{
@@ -1025,7 +1039,7 @@ export default function DashboardPage() {
                       </form>
                     ) : (
                       <a
-                        href="https://t.me/Legit_is_back"
+                        href="https://t.me/legit_is_back"
                         target="_blank"
                         rel="noopener noreferrer"
                         style={{

@@ -1,21 +1,17 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { extractUsageFromProviderHtml } from "@/lib/server/provider-usage";
+import {
+  ProviderAuthError,
+  ProviderConfigError,
+  providerFetch,
+} from "@/lib/server/provider-session";
 
 export async function GET(
-  request: NextRequest,
+  _request: NextRequest,
   { params }: { params: Promise<{ userId: string }> }
 ) {
   const { userId } = await params;
-  const AUTH_COOKIE = process.env.PROVIDER_SESSION_COOKIE;
-  const BASE_URL = process.env.PROVIDER_BASE_URL;
-
-  if (!AUTH_COOKIE || !BASE_URL) {
-    return NextResponse.json(
-      { success: false, error: "Server configuration error" },
-      { status: 500 }
-    );
-  }
 
   // Validate userId is numeric to prevent injection
   if (!/^\d+$/.test(userId)) {
@@ -26,12 +22,7 @@ export async function GET(
   }
 
   try {
-    const response = await fetch(`${BASE_URL}/partner/users/${userId}`, {
-      headers: {
-        cookie: AUTH_COOKIE,
-        "user-agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0 Safari/537.36",
-      },
+    const response = await providerFetch(`/partner/users/${userId}`, {
       cache: "no-store",
     });
 
@@ -43,6 +34,20 @@ export async function GET(
       usage,
     });
   } catch (error) {
+    if (error instanceof ProviderConfigError) {
+      return NextResponse.json(
+        { success: false, error: "Server configuration error" },
+        { status: 500 }
+      );
+    }
+
+    if (error instanceof ProviderAuthError) {
+      return NextResponse.json(
+        { success: false, error: "Failed to sync usage" },
+        { status: 503 }
+      );
+    }
+
     console.error("Usage scraper error:", error);
     return NextResponse.json(
       { success: false, error: "Failed to sync usage" },

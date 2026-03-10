@@ -1,6 +1,12 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { getAccount, upsertAccount } from "@/lib/server/account-store";
+import {
+  ProviderAuthError,
+  ProviderConfigError,
+  getProviderBaseUrl,
+  providerFetch,
+} from "@/lib/server/provider-session";
 
 function escapeRegExp(input: string) {
   return input.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -47,8 +53,7 @@ async function wait(ms: number) {
 
 export async function POST(request: NextRequest) {
   try {
-    const BASE_URL = process.env.PROVIDER_BASE_URL;
-    const AUTH_COOKIE = process.env.PROVIDER_SESSION_COOKIE;
+    const BASE_URL = getProviderBaseUrl();
 
     const payload = (await request.json().catch(() => ({}))) as {
       accountId?: string;
@@ -74,32 +79,8 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    if (!BASE_URL || !AUTH_COOKIE) {
-      return NextResponse.json(
-        { success: false, error: "Server configuration error" },
-        { status: 500 }
-      );
-    }
-
-    if (
-      AUTH_COOKIE === "PASTE_YOUR_FULL_COOKIE_STRING_HERE" ||
-      AUTH_COOKIE.length < 20
-    ) {
-      console.error(
-        "Key generation: PROVIDER_SESSION_COOKIE is not configured in .env.local"
-      );
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Service is being set up. Please contact support.",
-        },
-        { status: 503 }
-      );
-    }
-
     const browserLikeHeaders: Record<string, string> = {
       "content-type": "application/x-www-form-urlencoded",
-      cookie: AUTH_COOKIE,
       "user-agent":
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0 Safari/537.36",
       origin: BASE_URL,
@@ -112,7 +93,7 @@ export async function POST(request: NextRequest) {
     let userId: string | null = existingAccount?.providerUserId ?? null;
 
     if (!userId) {
-      const createRes = await fetch(`${BASE_URL}/partner/users/create`, {
+      const createRes = await providerFetch("/partner/users/create", {
         method: "POST",
         headers: {
           ...browserLikeHeaders,
@@ -120,21 +101,9 @@ export async function POST(request: NextRequest) {
         },
         body: `email=${encodeURIComponent(trialEmail)}&password_option=generate&password=&request_limit=100&rpm_limit=100`,
         redirect: "manual",
+        cache: "no-store",
+        retryOnAuthFailure: true,
       });
-
-      if (createRes.status === 401 || createRes.status === 403) {
-        console.error(
-          "Key generation: Auth rejected by provider, status:",
-          createRes.status
-        );
-        return NextResponse.json(
-          {
-            success: false,
-            error: "Service temporarily unavailable. Please try again later.",
-          },
-          { status: 503 }
-        );
-      }
 
       const userUrl = createRes.headers.get("location");
       let createBody = "";
@@ -152,18 +121,18 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // Some provider responses return HTML (200) but user is already created.
       if (!userId && createBody) {
         userId = extractUserIdFromHtml(createBody, trialEmail);
       }
 
       if (!userId) {
-        const partnerRes = await fetch(`${BASE_URL}/partner`, {
+        const partnerRes = await providerFetch("/partner", {
           method: "GET",
           headers: {
             ...browserLikeHeaders,
             referer: `${BASE_URL}/partner/users/create`,
           },
+          cache: "no-store",
         });
 
         const partnerHtml = await partnerRes.text().catch(() => "");
@@ -179,10 +148,10 @@ export async function POST(request: NextRequest) {
           {
             success: false,
             error: likelyAuthFailure
-              ? "Provider session expired or blocked request. Please refresh the provider cookie in server settings."
+              ? "Service temporarily unavailable. Please try again later."
               : `User creation could not be verified. Trial email: ${trialEmail}`,
           },
-          { status: likelyAuthFailure ? 401 : 502 }
+          { status: likelyAuthFailure ? 503 : 502 }
         );
       }
 
@@ -202,8 +171,8 @@ export async function POST(request: NextRequest) {
         await wait(1000 * attempt);
       }
 
-      const keyRes = await fetch(
-        `${BASE_URL}/partner/users/${userId}/api-keys/generate`,
+      const keyRes = await providerFetch(
+        `/partner/users/${userId}/api-keys/generate`,
         {
           method: "POST",
           headers: {
@@ -212,6 +181,8 @@ export async function POST(request: NextRequest) {
           },
           body: "key_name=EcomAgent+Trial&client_identifier=&description=Auto+Trial&rpm_limit=100&daily_limit=",
           redirect: "manual",
+          cache: "no-store",
+          retryOnAuthFailure: true,
         }
       );
 
@@ -261,6 +232,23 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true, key: apiKey, userId, reused: false });
   } catch (error) {
+    if (error instanceof ProviderConfigError) {
+      return NextResponse.json(
+        { success: false, error: "Server configuration error" },
+        { status: 500 }
+      );
+    }
+
+    if (error instanceof ProviderAuthError) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Service temporarily unavailable. Please try again later.",
+        },
+        { status: 503 }
+      );
+    }
+
     console.error("Key generation error:", error);
     return NextResponse.json(
       { success: false, error: "System busy. Please try again." },
