@@ -74,13 +74,38 @@ function extractKeyFromLocationOrBody(location: string | null, body: string) {
   return null;
 }
 
+/**
+ * After generating (or attempting to generate) a key, the provider usually
+ * redirects to the user page where the key is visible in the HTML.
+ * Fetch that page and extract the first sk- key found.
+ */
+async function fetchKeyFromUserPage(
+  userId: string,
+  browserLikeHeaders: Record<string, string>
+): Promise<string | null> {
+  try {
+    const pageRes = await providerFetch(`/partner/users/${userId}`, {
+      method: "GET",
+      headers: { ...browserLikeHeaders, "content-type": undefined as unknown as string },
+      cache: "no-store",
+      redirect: "manual",
+      retryOnAuthFailure: true,
+    });
+    if (pageRes.status >= 400) return null;
+    const html = await pageRes.text().catch(() => "");
+    const match = html.match(/\b(sk-[A-Za-z0-9_-]{20,})\b/);
+    return match?.[1] ?? null;
+  } catch {
+    return null;
+  }
+}
+
 async function generateKeyForUser(
   baseUrl: string,
   userId: string,
   browserLikeHeaders: Record<string, string>
 ) {
-  // Single generation attempt avoids accidental multi-key creation on providers
-  // where response parsing is flaky but key creation succeeds.
+  // Single generation attempt — avoids accidental multi-key creation.
   const keyRes = await providerFetch(
     `/partner/users/${userId}/api-keys/generate`,
     {
@@ -98,11 +123,20 @@ async function generateKeyForUser(
 
   const keyUrl = keyRes.headers.get("location");
   const keyBody = await keyRes.text().catch(() => "");
-  const apiKey = extractKeyFromLocationOrBody(keyUrl, keyBody);
+  let apiKey = extractKeyFromLocationOrBody(keyUrl, keyBody);
+
+  // Many providers redirect to the user page after key creation without
+  // embedding the key in the redirect URL. Fetch the page as a fallback.
+  if (!apiKey) {
+    apiKey = await fetchKeyFromUserPage(userId, browserLikeHeaders);
+    if (apiKey) {
+      console.log(`Key recovered from user page for userId=${userId}`);
+    }
+  }
 
   if (!apiKey) {
     console.warn(
-      "Key generation response did not include parsable key. Status:",
+      "Key generation: no key in response or user page. Status:",
       keyRes.status,
       "Body:",
       keyBody.slice(0, 250)
@@ -165,7 +199,13 @@ export async function POST(request: NextRequest) {
     };
 
     const randomId = Math.floor(Math.random() * 100000);
-    const trialEmail = `trial_${randomId}@ecomagent.in`;
+    // Use a deterministic prefix derived from accountId so every provider user
+    // is always traceable back to the Supabase account without extra DB columns.
+    // Format: trial_<first-12-hex-chars-of-uuid>@ecomagent.in
+    const accountHex = accountId.replace(/-/g, "").slice(0, 12);
+    const trialEmail = accountHex
+      ? `trial_${accountHex}@ecomagent.in`
+      : `trial_${randomId}@ecomagent.in`;
 
     let userId: string | null = existingAccount?.providerUserId ?? null;
     let apiKey: string | null = null;
@@ -179,10 +219,9 @@ export async function POST(request: NextRequest) {
         lastKeyStatus = existingUserResult.lastKeyStatus;
         lastKeyBody = existingUserResult.lastKeyBody;
 
-        if (!apiKey) {
-          await clearAccountProviderUser(accountId);
-          userId = null;
-        }
+        // Do NOT clear providerUserId when key parse fails — the user exists on
+        // the provider side. Clearing it causes a new orphan user to be created
+        // on the next click. Only wipe on a genuine auth failure below.
       } catch (error) {
         if (error instanceof ProviderAuthError) {
           await clearAccountProviderUser(accountId);
