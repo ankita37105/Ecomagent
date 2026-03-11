@@ -202,10 +202,6 @@ export default function DashboardPage() {
   }, [apiKey?.userId]);
 
   const generateKey = async () => {
-    if (apiKey) {
-      setGenError("Only one API key is allowed per account.");
-      return;
-    }
     if (!user?.id || !user?.email) {
       setGenError("Please sign in again to generate your key.");
       return;

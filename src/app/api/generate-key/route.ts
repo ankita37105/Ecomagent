@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { getAccount, upsertAccount } from "@/lib/server/account-store";
+import { getAccount, upsertAccount, clearAccountApiKey } from "@/lib/server/account-store";
 import {
   ProviderAuthError,
   ProviderConfigError,
@@ -8,6 +8,28 @@ import {
   providerFetch,
 } from "@/lib/server/provider-session";
 import { isDisposableEmail } from "@/lib/blocked-email-domains";
+
+async function isKeyOnProvider(userId: string, apiKey: string): Promise<boolean> {
+  try {
+    const res = await providerFetch(`/partner/users/${userId}`, {
+      method: "GET",
+      cache: "no-store",
+      redirect: "manual",
+    });
+    if (res.status === 404) return false;
+    // If auth failed we can't tell — assume valid to avoid false positives
+    if (res.status === 401 || res.status === 403) return true;
+    const body = await res.text().catch(() => "");
+    if (!body) return true;
+    // Search for the key — providers typically show full key on user detail page
+    const prefix = apiKey.slice(0, 20);
+    const suffix = apiKey.slice(-10);
+    return body.includes(prefix) || body.includes(suffix);
+  } catch {
+    // Network/parse error — assume valid, don't block the user
+    return true;
+  }
+}
 
 function escapeRegExp(input: string) {
   return input.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -78,13 +100,22 @@ export async function POST(request: NextRequest) {
     }
 
     const existingAccount = await getAccount(accountId);
-    if (existingAccount?.apiKey) {
-      return NextResponse.json({
-        success: true,
-        key: existingAccount.apiKey,
-        userId: existingAccount.providerUserId ?? "",
-        reused: true,
-      });
+    if (existingAccount?.apiKey && existingAccount.providerUserId) {
+      // Verify the key still exists on the provider
+      const keyStillValid = await isKeyOnProvider(
+        existingAccount.providerUserId,
+        existingAccount.apiKey
+      );
+      if (keyStillValid) {
+        return NextResponse.json({
+          success: true,
+          key: existingAccount.apiKey,
+          userId: existingAccount.providerUserId,
+          reused: true,
+        });
+      }
+      // Key was deleted on provider — clear it so we can regenerate below
+      await clearAccountApiKey(accountId);
     }
 
     const browserLikeHeaders: Record<string, string> = {

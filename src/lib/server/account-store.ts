@@ -126,6 +126,15 @@ export async function upsertAccount(params: {
   return mapAccountRow(data);
 }
 
+export async function clearAccountApiKey(accountId: string): Promise<void> {
+  const sb = getSupabase();
+  const { error } = await sb
+    .from("accounts")
+    .update({ api_key: null, api_key_name: null, updated_at: new Date().toISOString() })
+    .eq("account_id", accountId);
+  if (error) throw new Error(error.message);
+}
+
 export async function upsertPayment(params: {
   txnId: string;
   accountId: string;
