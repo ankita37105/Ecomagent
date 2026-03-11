@@ -202,7 +202,16 @@ export async function generateProviderApiKey(
   return getKeyFromProviderPage(userId);
 }
 
-export async function isProviderKeyPresent(userId: string, apiKey: string): Promise<boolean> {
+export type KeyStatus = "present" | "absent" | "unknown";
+
+/**
+ * Check whether the API key still exists on the provider user page.
+ * Returns:
+ *  - "present" — key found in the HTML
+ *  - "absent"  — page loaded successfully but key is NOT in the HTML
+ *  - "unknown" — could not determine (auth failure, network error, etc.)
+ */
+export async function checkProviderKeyStatus(userId: string, apiKey: string): Promise<KeyStatus> {
   try {
     const res = await providerFetch(`/partner/users/${userId}`, {
       method: "GET",
@@ -210,20 +219,21 @@ export async function isProviderKeyPresent(userId: string, apiKey: string): Prom
       redirect: "manual",
     });
 
-    if (res.status === 404) return false;
-    if (res.status === 401 || res.status === 403) return false;
+    // 404 means the provider user itself is gone
+    if (res.status === 404) return "absent";
+    // Auth issues → we can't tell, don't assume either way
+    if (res.status === 401 || res.status === 403) return "unknown";
 
     const body = await res.text().catch(() => "");
-    if (!body) return false;
+    if (!body) return "unknown";
 
     // Match by stable fragments to tolerate masked rendering differences.
     const prefix = apiKey.slice(0, 20);
     const suffix = apiKey.slice(-10);
-    return body.includes(prefix) || body.includes(suffix);
+    return (body.includes(prefix) || body.includes(suffix)) ? "present" : "absent";
   } catch (error) {
-    // On auth errors assume the key still exists to avoid accidental clearing.
-    if (error instanceof ProviderAuthError) return true;
-    return false;
+    if (error instanceof ProviderAuthError) return "unknown";
+    return "unknown";
   }
 }
 

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { clearAccountApiKey, getAccount, upsertAccount } from "@/lib/server/account-store";
-import { isProviderKeyPresent } from "@/lib/server/provider-keys";
+import { checkProviderKeyStatus } from "@/lib/server/provider-keys";
 
 export async function GET(
   _request: Request,
@@ -28,12 +28,14 @@ export async function GET(
   }
 
   if (account.apiKey && account.providerUserId) {
-    const keyStillExists = await isProviderKeyPresent(account.providerUserId, account.apiKey);
-    if (!keyStillExists) {
+    const status = await checkProviderKeyStatus(account.providerUserId, account.apiKey);
+    if (status === "absent") {
+      // Key definitively gone on the provider — clear it so user can regenerate
       await clearAccountApiKey(accountId);
       const refreshed = await getAccount(accountId);
       return NextResponse.json({ success: true, subscription: refreshed });
     }
+    // "unknown" → skip clearing, return existing data as-is
   }
 
   return NextResponse.json({ success: true, subscription: account });

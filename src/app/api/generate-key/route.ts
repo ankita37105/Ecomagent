@@ -12,7 +12,7 @@ import {
   providerFetch,
 } from "@/lib/server/provider-session";
 import { isDisposableEmail } from "@/lib/blocked-email-domains";
-import { getKeyFromProviderPage, isProviderKeyPresent } from "@/lib/server/provider-keys";
+import { checkProviderKeyStatus, getKeyFromProviderPage } from "@/lib/server/provider-keys";
 
 function escapeRegExp(input: string) {
   return input.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -161,12 +161,11 @@ export async function POST(request: NextRequest) {
 
     const existingAccount = await getAccount(accountId);
     if (existingAccount?.apiKey && existingAccount.providerUserId) {
-      // Verify the key still exists on the provider
-      const keyStillValid = await isProviderKeyPresent(
+      const status = await checkProviderKeyStatus(
         existingAccount.providerUserId,
         existingAccount.apiKey
       );
-      if (keyStillValid) {
+      if (status === "present") {
         return NextResponse.json({
           success: true,
           key: existingAccount.apiKey,
@@ -174,8 +173,11 @@ export async function POST(request: NextRequest) {
           reused: true,
         });
       }
-      // Key was deleted on provider — clear it so we can regenerate below
-      await clearAccountApiKey(accountId);
+      if (status === "absent") {
+        // Key definitively gone on the provider — clear it so we regenerate below
+        await clearAccountApiKey(accountId);
+      }
+      // "unknown" → provider unreachable, fall through to attempt regeneration
     }
 
     const browserLikeHeaders: Record<string, string> = {
