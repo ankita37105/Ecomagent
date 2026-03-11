@@ -340,6 +340,7 @@ export function getProviderBaseUrl() {
 
 type ProviderFetchInit = RequestInit & {
   retryOnAuthFailure?: boolean;
+  sessionCookie?: string;
 };
 
 function isIdempotentMethod(method: string) {
@@ -347,7 +348,7 @@ function isIdempotentMethod(method: string) {
 }
 
 export async function providerFetch(pathOrUrl: string, init: ProviderFetchInit = {}) {
-  const { retryOnAuthFailure, ...requestInit } = init;
+  const { retryOnAuthFailure, sessionCookie, ...requestInit } = init;
   const method = (requestInit.method ?? "GET").toUpperCase();
   const shouldRetryOnAuthFailure =
     retryOnAuthFailure ?? isIdempotentMethod(method);
@@ -355,7 +356,7 @@ export async function providerFetch(pathOrUrl: string, init: ProviderFetchInit =
   const config = getProviderConfig();
   const url = toProviderUrl(config.baseUrl, pathOrUrl);
 
-  const firstCookie = await getInitialCookie(config);
+  const firstCookie = sessionCookie ?? await getInitialCookie(config);
   let response = await fetchWithCookie(url, requestInit, firstCookie);
 
   if (await looksLikeAuthFailure(response)) {
@@ -363,7 +364,7 @@ export async function providerFetch(pathOrUrl: string, init: ProviderFetchInit =
       throw new ProviderAuthError("Provider authentication failed for request");
     }
 
-    const refreshedCookie = await ensureRefreshCookie(config);
+    const refreshedCookie = sessionCookie ?? await ensureRefreshCookie(config);
     response = await fetchWithCookie(url, requestInit, refreshedCookie);
 
     if (await looksLikeAuthFailure(response)) {
@@ -372,4 +373,9 @@ export async function providerFetch(pathOrUrl: string, init: ProviderFetchInit =
   }
 
   return response;
+}
+
+export async function getFreshProviderCookie() {
+  const config = getProviderConfig();
+  return loginAndGetSession(config);
 }

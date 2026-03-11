@@ -9,6 +9,7 @@ import {
 import {
   ProviderAuthError,
   ProviderConfigError,
+  getFreshProviderCookie,
   getProviderBaseUrl,
   providerFetch,
 } from "@/lib/server/provider-session";
@@ -38,7 +39,8 @@ function extractUserIdFromHtml(html: string, email: string) {
 async function findProviderUserIdByEmail(
   email: string,
   baseUrl: string,
-  browserLikeHeaders: Record<string, string>
+  browserLikeHeaders: Record<string, string>,
+  sessionCookie: string
 ) {
   const candidatePaths = ["/partner/users", "/partner"];
 
@@ -51,6 +53,7 @@ async function findProviderUserIdByEmail(
           referer: `${baseUrl}/partner/users/create`,
         },
         cache: "no-store",
+        sessionCookie,
       });
 
       if (res.status >= 400) continue;
@@ -66,11 +69,12 @@ async function findProviderUserIdByEmail(
   return null;
 }
 
-async function providerUserPageExists(userId: string) {
+async function providerUserPageExists(userId: string, sessionCookie: string) {
   try {
     const res = await providerFetch(`/partner/users/${userId}`, {
       method: "GET",
       cache: "no-store",
+      sessionCookie,
     });
 
     if (res.status === 404) return false;
@@ -129,7 +133,8 @@ function extractKeyFromLocationOrBody(location: string | null, body: string) {
 async function generateKeyForUser(
   baseUrl: string,
   userId: string,
-  browserLikeHeaders: Record<string, string>
+  browserLikeHeaders: Record<string, string>,
+  sessionCookie: string
 ) {
   let apiKey: string | null = null;
   let lastKeyStatus = 0;
@@ -151,6 +156,7 @@ async function generateKeyForUser(
         redirect: "manual",
         cache: "no-store",
         retryOnAuthFailure: false,
+        sessionCookie,
       }
     );
 
@@ -169,7 +175,7 @@ async function generateKeyForUser(
   if (!apiKey) {
     // Small delay to let the provider commit the key.
     await new Promise((r) => setTimeout(r, 800));
-    apiKey = await getKeyFromProviderPage(userId);
+    apiKey = await getKeyFromProviderPage(userId, sessionCookie);
     if (apiKey) {
       console.log(`Key recovered from user page for userId=${userId}`);
     }
@@ -190,6 +196,7 @@ async function generateKeyForUser(
 export async function POST(request: NextRequest) {
   try {
     const BASE_URL = getProviderBaseUrl();
+    const sessionCookie = await getFreshProviderCookie();
 
     const payload = (await request.json().catch(() => ({}))) as {
       accountId?: string;
@@ -259,7 +266,8 @@ export async function POST(request: NextRequest) {
       const confirmedUserId = await findProviderUserIdByEmail(
         trialEmail,
         BASE_URL,
-        browserLikeHeaders
+        browserLikeHeaders,
+        sessionCookie
       );
 
       if (confirmedUserId && confirmedUserId !== userId) {
@@ -270,7 +278,7 @@ export async function POST(request: NextRequest) {
       }
 
       if (!confirmedUserId) {
-        const pageExists = await providerUserPageExists(userId);
+        const pageExists = await providerUserPageExists(userId, sessionCookie);
         if (pageExists === false) {
           console.log(
             `Stored provider user ${userId} no longer exists for accountId=${accountId}; creating a fresh user`
@@ -285,13 +293,18 @@ export async function POST(request: NextRequest) {
       // Before generating a new key, check if one already exists on the
       // provider page (e.g. created by a previous attempt that failed to
       // return the key to the client).
-      const existingProviderKey = await getKeyFromProviderPage(userId);
+      const existingProviderKey = await getKeyFromProviderPage(userId, sessionCookie);
       if (existingProviderKey) {
         console.log(`Found existing provider key for userId=${userId}, reusing`);
         apiKey = existingProviderKey;
       } else {
         // No key on the provider page yet — generate one.
-        const result = await generateKeyForUser(BASE_URL, userId, browserLikeHeaders);
+        const result = await generateKeyForUser(
+          BASE_URL,
+          userId,
+          browserLikeHeaders,
+          sessionCookie
+        );
         apiKey = result.apiKey;
         lastKeyStatus = result.lastKeyStatus;
         lastKeyBody = result.lastKeyBody;
@@ -312,6 +325,7 @@ export async function POST(request: NextRequest) {
         redirect: "manual",
         cache: "no-store",
         retryOnAuthFailure: false,
+        sessionCookie,
       });
 
       const userUrl = createRes.headers.get("location");
@@ -335,7 +349,12 @@ export async function POST(request: NextRequest) {
       }
 
       if (!userId) {
-        userId = await findProviderUserIdByEmail(trialEmail, BASE_URL, browserLikeHeaders);
+        userId = await findProviderUserIdByEmail(
+          trialEmail,
+          BASE_URL,
+          browserLikeHeaders,
+          sessionCookie
+        );
       }
 
       if (!userId || !/^\d+$/.test(userId)) {
@@ -361,7 +380,12 @@ export async function POST(request: NextRequest) {
         providerEmail: trialEmail,
       });
 
-      const createdUserResult = await generateKeyForUser(BASE_URL, userId, browserLikeHeaders);
+      const createdUserResult = await generateKeyForUser(
+        BASE_URL,
+        userId,
+        browserLikeHeaders,
+        sessionCookie
+      );
       apiKey = createdUserResult.apiKey;
       lastKeyStatus = createdUserResult.lastKeyStatus;
       lastKeyBody = createdUserResult.lastKeyBody;
@@ -372,14 +396,20 @@ export async function POST(request: NextRequest) {
         const resolvedUserId = await findProviderUserIdByEmail(
           trialEmail,
           BASE_URL,
-          browserLikeHeaders
+          browserLikeHeaders,
+          sessionCookie
         );
 
         if (resolvedUserId && resolvedUserId !== userId) {
           userId = resolvedUserId;
-          apiKey = await getKeyFromProviderPage(userId);
+          apiKey = await getKeyFromProviderPage(userId, sessionCookie);
           if (!apiKey) {
-            const recoveredResult = await generateKeyForUser(BASE_URL, userId, browserLikeHeaders);
+            const recoveredResult = await generateKeyForUser(
+              BASE_URL,
+              userId,
+              browserLikeHeaders,
+              sessionCookie
+            );
             apiKey = recoveredResult.apiKey;
             lastKeyStatus = recoveredResult.lastKeyStatus;
             lastKeyBody = recoveredResult.lastKeyBody;

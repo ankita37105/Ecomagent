@@ -117,11 +117,15 @@ export async function deleteProviderApiKey(userId: string, apiKey: string): Prom
  * Scrape the provider user page and return the first API key found.
  * Returns null when no key is found or the page cannot be fetched.
  */
-export async function getKeyFromProviderPage(userId: string): Promise<string | null> {
+export async function getKeyFromProviderPage(
+  userId: string,
+  sessionCookie?: string
+): Promise<string | null> {
   try {
     const res = await providerFetch(`/partner/users/${userId}`, {
       method: "GET",
       cache: "no-store",
+      sessionCookie,
     });
     if (res.status >= 400) return null;
     const html = await res.text().catch(() => "");
@@ -157,7 +161,8 @@ function extractKeyFromHtml(html: string): string | null {
 
 export async function generateProviderApiKey(
   userId: string,
-  keyName = "EcomAgent Trial"
+  keyName = "EcomAgent Trial",
+  sessionCookie?: string
 ): Promise<string | null> {
   const baseUrl = getProviderBaseUrl();
   const body = new URLSearchParams({
@@ -186,6 +191,7 @@ export async function generateProviderApiKey(
       redirect: "manual",
       cache: "no-store",
       retryOnAuthFailure: false,
+      sessionCookie,
     });
 
     const location = res.headers.get("location");
@@ -198,7 +204,7 @@ export async function generateProviderApiKey(
 
   // Fallback: scrape the user page for the key.
   await wait(500);
-  return getKeyFromProviderPage(userId);
+  return getKeyFromProviderPage(userId, sessionCookie);
 }
 
 export type KeyStatus = "present" | "absent" | "unknown";
