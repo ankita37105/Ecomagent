@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import {
   clearAccountApiKey,
+  clearAccountProviderUser,
   getAccount,
   upsertAccount,
 } from "@/lib/server/account-store";
@@ -32,6 +33,58 @@ function extractUserIdFromHtml(html: string, email: string) {
   }
 
   return null;
+}
+
+async function findProviderUserIdByEmail(
+  email: string,
+  baseUrl: string,
+  browserLikeHeaders: Record<string, string>
+) {
+  const candidatePaths = ["/partner/users", "/partner"];
+
+  for (const path of candidatePaths) {
+    try {
+      const res = await providerFetch(path, {
+        method: "GET",
+        headers: {
+          ...browserLikeHeaders,
+          referer: `${baseUrl}/partner/users/create`,
+        },
+        cache: "no-store",
+      });
+
+      if (res.status >= 400) continue;
+
+      const html = await res.text().catch(() => "");
+      const userId = extractUserIdFromHtml(html, email);
+      if (userId && /^\d+$/.test(userId)) return userId;
+    } catch {
+      // Ignore and continue to the next candidate path.
+    }
+  }
+
+  return null;
+}
+
+async function providerUserPageExists(userId: string) {
+  try {
+    const res = await providerFetch(`/partner/users/${userId}`, {
+      method: "GET",
+      cache: "no-store",
+    });
+
+    if (res.status === 404) return false;
+    if (res.status >= 400) return null;
+
+    const html = await res.text().catch(() => "");
+    if (!html) return null;
+    if (/\b(login|sign in|session expired)\b/i.test(html)) return null;
+
+    return true;
+  } catch (error) {
+    if (error instanceof ProviderAuthError) return null;
+    return null;
+  }
 }
 
 function extractKeyFromLocationOrBody(location: string | null, body: string) {
@@ -203,6 +256,32 @@ export async function POST(request: NextRequest) {
     let lastKeyBody = "";
 
     if (userId) {
+      const confirmedUserId = await findProviderUserIdByEmail(
+        trialEmail,
+        BASE_URL,
+        browserLikeHeaders
+      );
+
+      if (confirmedUserId && confirmedUserId !== userId) {
+        console.log(
+          `Provider user mapping drift for accountId=${accountId}: stored=${userId}, actual=${confirmedUserId}`
+        );
+        userId = confirmedUserId;
+      }
+
+      if (!confirmedUserId) {
+        const pageExists = await providerUserPageExists(userId);
+        if (pageExists === false) {
+          console.log(
+            `Stored provider user ${userId} no longer exists for accountId=${accountId}; creating a fresh user`
+          );
+          await clearAccountProviderUser(accountId);
+          userId = null;
+        }
+      }
+    }
+
+    if (userId) {
       // Before generating a new key, check if one already exists on the
       // provider page (e.g. created by a previous attempt that failed to
       // return the key to the client).
@@ -256,17 +335,7 @@ export async function POST(request: NextRequest) {
       }
 
       if (!userId) {
-        const partnerRes = await providerFetch("/partner", {
-          method: "GET",
-          headers: {
-            ...browserLikeHeaders,
-            referer: `${BASE_URL}/partner/users/create`,
-          },
-          cache: "no-store",
-        });
-
-        const partnerHtml = await partnerRes.text().catch(() => "");
-        userId = extractUserIdFromHtml(partnerHtml, trialEmail);
+        userId = await findProviderUserIdByEmail(trialEmail, BASE_URL, browserLikeHeaders);
       }
 
       if (!userId || !/^\d+$/.test(userId)) {
@@ -299,6 +368,27 @@ export async function POST(request: NextRequest) {
     }
 
     if (!apiKey) {
+      if (userId) {
+        const resolvedUserId = await findProviderUserIdByEmail(
+          trialEmail,
+          BASE_URL,
+          browserLikeHeaders
+        );
+
+        if (resolvedUserId && resolvedUserId !== userId) {
+          userId = resolvedUserId;
+          apiKey = await getKeyFromProviderPage(userId);
+          if (!apiKey) {
+            const recoveredResult = await generateKeyForUser(BASE_URL, userId, browserLikeHeaders);
+            apiKey = recoveredResult.apiKey;
+            lastKeyStatus = recoveredResult.lastKeyStatus;
+            lastKeyBody = recoveredResult.lastKeyBody;
+          }
+        }
+      }
+    }
+
+    if (!apiKey) {
       console.error(
         "Key generation: All retries failed. Last status:",
         lastKeyStatus,
@@ -308,7 +398,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           success: false,
-          error: `User created (ID: ${userId}) but key generation did not complete. Please wait 5 seconds and retry.`,
+          error: `Provider user is mapped (ID: ${userId}) but key generation did not complete. Please retry once.`,
         },
         { status: 502 }
       );
