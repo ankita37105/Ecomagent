@@ -12,6 +12,7 @@ export type AccountRecord = {
   apiKey?: string;
   apiKeyName?: string;
   providerUserId?: string;
+  providerEmail?: string;
   planStartsAt?: string;
   planEndsAt?: string;
   apiKeyCreatedAt?: string;
@@ -56,6 +57,7 @@ function mapAccountRow(row: Record<string, any>): AccountRecord {
     apiKey: row.api_key ?? undefined,
     apiKeyName: row.api_key_name ?? undefined,
     providerUserId: row.provider_user_id ?? undefined,
+    providerEmail: row.provider_email ?? undefined,
     planStartsAt: row.plan_starts_at ?? undefined,
     planEndsAt: row.plan_ends_at ?? undefined,
     apiKeyCreatedAt: row.api_key_created_at ?? undefined,
@@ -104,6 +106,7 @@ export async function upsertAccount(params: {
   apiKey?: string;
   apiKeyName?: string;
   providerUserId?: string;
+  providerEmail?: string;
   /** Pass true when a new paid plan is being activated to stamp a fresh 30-day window. */
   stampValidity?: boolean;
 }): Promise<AccountRecord> {
@@ -127,6 +130,7 @@ export async function upsertAccount(params: {
     api_key: params.apiKey ?? existing?.apiKey ?? null,
     api_key_name: params.apiKeyName ?? existing?.apiKeyName ?? null,
     provider_user_id: params.providerUserId ?? existing?.providerUserId ?? null,
+    provider_email: params.providerEmail ?? existing?.providerEmail ?? null,
     plan_starts_at: startsAt,
     plan_ends_at: endsAt,
     // Stamp api_key_created_at only when a brand-new key is being stored.

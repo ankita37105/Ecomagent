@@ -1,4 +1,4 @@
-import { getProviderBaseUrl, providerFetch } from "@/lib/server/provider-session";
+import { getProviderBaseUrl, ProviderAuthError, providerFetch } from "@/lib/server/provider-session";
 
 function extractHiddenInputs(html: string): Array<[string, string]> {
   const pairs: Array<[string, string]> = [];
@@ -113,6 +113,49 @@ export async function deleteProviderApiKey(userId: string, apiKey: string): Prom
   }
 }
 
+/**
+ * Scrape the provider user page and return the first API key found.
+ * Returns null when no key is found or the page cannot be fetched.
+ */
+export async function getKeyFromProviderPage(userId: string): Promise<string | null> {
+  try {
+    const res = await providerFetch(`/partner/users/${userId}`, {
+      method: "GET",
+      cache: "no-store",
+      redirect: "manual",
+    });
+    if (res.status >= 400) return null;
+    const html = await res.text().catch(() => "");
+    return extractKeyFromHtml(html);
+  } catch {
+    return null;
+  }
+}
+
+function extractKeyFromHtml(html: string): string | null {
+  if (!html) return null;
+
+  // 1. sk-proxy-* keys
+  const proxyMatch = html.match(/\b(sk-proxy-[A-Za-z0-9_-]{20,})\b/);
+  if (proxyMatch?.[1]) return proxyMatch[1];
+
+  // 2. sk-* keys
+  const skMatch = html.match(/\b(sk-[A-Za-z0-9_-]{20,})\b/);
+  if (skMatch?.[1]) return skMatch[1];
+
+  // 3. Keys shown in input value fields
+  const inputMatch = html.match(
+    /name=["'](?:api_key|key|new_key)["'][^>]*value=["']([^"']{20,})["']/i
+  );
+  if (inputMatch?.[1]) return inputMatch[1];
+
+  // 4. Keys displayed in code / pre / monospace elements
+  const codeMatch = html.match(/<(?:code|pre|samp)[^>]*>\s*([A-Za-z0-9_-]{40,})\s*<\/(?:code|pre|samp)>/i);
+  if (codeMatch?.[1]) return codeMatch[1];
+
+  return null;
+}
+
 export async function generateProviderApiKey(
   userId: string,
   keyName = "EcomAgent Trial"
@@ -135,25 +178,28 @@ export async function generateProviderApiKey(
     accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
   };
 
-  for (let attempt = 1; attempt <= 3; attempt++) {
-    if (attempt > 1) await wait(1000 * attempt);
-
+  // Single attempt — retryOnAuthFailure false to prevent duplicate key creation.
+  try {
     const res = await providerFetch(`/partner/users/${userId}/api-keys/generate`, {
       method: "POST",
       headers: browserLikeHeaders,
       body,
       redirect: "manual",
       cache: "no-store",
-      retryOnAuthFailure: true,
+      retryOnAuthFailure: false,
     });
 
     const location = res.headers.get("location");
     const text = await res.text().catch(() => "");
     const key = extractKeyFromLocationOrBody(location, text);
     if (key) return key;
+  } catch {
+    // POST might have created the key even though auth check failed.
   }
 
-  return null;
+  // Fallback: scrape the user page for the key.
+  await wait(500);
+  return getKeyFromProviderPage(userId);
 }
 
 export async function isProviderKeyPresent(userId: string, apiKey: string): Promise<boolean> {
@@ -174,6 +220,27 @@ export async function isProviderKeyPresent(userId: string, apiKey: string): Prom
     const prefix = apiKey.slice(0, 20);
     const suffix = apiKey.slice(-10);
     return body.includes(prefix) || body.includes(suffix);
+  } catch (error) {
+    // On auth errors assume the key still exists to avoid accidental clearing.
+    if (error instanceof ProviderAuthError) return true;
+    return false;
+  }
+}
+
+/**
+ * Attempt to permanently delete a provider user account (not just the key).
+ */
+export async function deleteProviderUser(userId: string): Promise<boolean> {
+  try {
+    const res = await providerFetch(`/partner/users/${userId}/delete`, {
+      method: "POST",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      body: "confirmation=DELETE",
+      redirect: "manual",
+      cache: "no-store",
+      retryOnAuthFailure: true,
+    });
+    return res.status < 400;
   } catch {
     return false;
   }

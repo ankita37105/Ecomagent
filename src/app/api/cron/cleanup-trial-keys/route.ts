@@ -2,12 +2,12 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import {
   clearAccountApiKey,
+  clearAccountProviderUser,
   getExpiredTrialAccounts,
-  upsertAccount,
 } from "@/lib/server/account-store";
 import {
   deleteProviderApiKey,
-  generateProviderApiKey,
+  deleteProviderUser,
 } from "@/lib/server/provider-keys";
 
 export const runtime = "nodejs";
@@ -29,45 +29,37 @@ export async function GET(request: NextRequest) {
     const results: {
       accountId: string;
       email: string;
-      providerDeleted: boolean;
-      newKeyGenerated: boolean;
+      providerKeyDeleted: boolean;
+      providerUserDeleted: boolean;
     }[] = [];
 
     for (const account of accounts) {
-      let providerDeleted = false;
-      let newKeyGenerated = false;
+      let providerKeyDeleted = false;
+      let providerUserDeleted = false;
 
+      // Delete the API key on the provider
       if (account.providerUserId && account.apiKey) {
-        providerDeleted = await deleteProviderApiKey(account.providerUserId, account.apiKey);
+        providerKeyDeleted = await deleteProviderApiKey(account.providerUserId, account.apiKey);
       }
 
+      // Delete the provider user entirely to free up server space
+      if (account.providerUserId) {
+        providerUserDeleted = await deleteProviderUser(account.providerUserId);
+      }
+
+      // Clear key and provider user from Supabase so user can re-generate
       await clearAccountApiKey(account.accountId);
-
-      // Free-trial rotation: after 3 days, old key is revoked and replaced with a fresh key.
-      if (account.providerUserId && (providerDeleted || !account.apiKey)) {
-        const newKey = await generateProviderApiKey(account.providerUserId, "EcomAgent Trial");
-        if (newKey) {
-          await upsertAccount({
-            accountId: account.accountId,
-            email: account.email,
-            plan: "free_trial",
-            apiKey: newKey,
-            apiKeyName: "EcomAgent Trial",
-            providerUserId: account.providerUserId,
-          });
-          newKeyGenerated = true;
-        }
-      }
+      await clearAccountProviderUser(account.accountId);
 
       results.push({
         accountId: account.accountId,
         email: account.email,
-        providerDeleted,
-        newKeyGenerated,
+        providerKeyDeleted,
+        providerUserDeleted,
       });
 
       console.log(
-        `[cleanup-trial-keys] Rotated key for ${account.email} | providerDeleted=${providerDeleted} | newKeyGenerated=${newKeyGenerated}`
+        `[cleanup-trial-keys] Cleaned ${account.email} | keyDeleted=${providerKeyDeleted} | userDeleted=${providerUserDeleted}`
       );
     }
 

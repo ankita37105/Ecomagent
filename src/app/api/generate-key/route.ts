@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import {
   clearAccountApiKey,
-  clearAccountProviderUser,
   getAccount,
   upsertAccount,
 } from "@/lib/server/account-store";
@@ -13,7 +12,7 @@ import {
   providerFetch,
 } from "@/lib/server/provider-session";
 import { isDisposableEmail } from "@/lib/blocked-email-domains";
-import { isProviderKeyPresent } from "@/lib/server/provider-keys";
+import { getKeyFromProviderPage, isProviderKeyPresent } from "@/lib/server/provider-keys";
 
 function escapeRegExp(input: string) {
   return input.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -74,61 +73,50 @@ function extractKeyFromLocationOrBody(location: string | null, body: string) {
   return null;
 }
 
-/**
- * After generating (or attempting to generate) a key, the provider usually
- * redirects to the user page where the key is visible in the HTML.
- * Fetch that page and extract the first sk- key found.
- */
-async function fetchKeyFromUserPage(
-  userId: string,
-  browserLikeHeaders: Record<string, string>
-): Promise<string | null> {
-  try {
-    const pageRes = await providerFetch(`/partner/users/${userId}`, {
-      method: "GET",
-      headers: { ...browserLikeHeaders, "content-type": undefined as unknown as string },
-      cache: "no-store",
-      redirect: "manual",
-      retryOnAuthFailure: true,
-    });
-    if (pageRes.status >= 400) return null;
-    const html = await pageRes.text().catch(() => "");
-    const match = html.match(/\b(sk-[A-Za-z0-9_-]{20,})\b/);
-    return match?.[1] ?? null;
-  } catch {
-    return null;
-  }
-}
-
 async function generateKeyForUser(
   baseUrl: string,
   userId: string,
   browserLikeHeaders: Record<string, string>
 ) {
-  // Single generation attempt — avoids accidental multi-key creation.
-  const keyRes = await providerFetch(
-    `/partner/users/${userId}/api-keys/generate`,
-    {
-      method: "POST",
-      headers: {
-        ...browserLikeHeaders,
-        referer: `${baseUrl}/partner/users/${userId}`,
-      },
-      body: "key_name=EcomAgent+Trial&client_identifier=&description=Auto+Trial&rpm_limit=10&daily_limit=100",
-      redirect: "manual",
-      cache: "no-store",
-      retryOnAuthFailure: true,
-    }
-  );
+  let apiKey: string | null = null;
+  let lastKeyStatus = 0;
+  let lastKeyBody = "";
 
-  const keyUrl = keyRes.headers.get("location");
-  const keyBody = await keyRes.text().catch(() => "");
-  let apiKey = extractKeyFromLocationOrBody(keyUrl, keyBody);
+  // Single generation attempt — retryOnAuthFailure FALSE to prevent duplicate
+  // key creation on the provider when the first POST actually succeeds but
+  // the response is misinterpreted as an auth failure.
+  try {
+    const keyRes = await providerFetch(
+      `/partner/users/${userId}/api-keys/generate`,
+      {
+        method: "POST",
+        headers: {
+          ...browserLikeHeaders,
+          referer: `${baseUrl}/partner/users/${userId}`,
+        },
+        body: "key_name=EcomAgent+Trial&client_identifier=&description=Auto+Trial&rpm_limit=10&daily_limit=100",
+        redirect: "manual",
+        cache: "no-store",
+        retryOnAuthFailure: false,
+      }
+    );
 
-  // Many providers redirect to the user page after key creation without
-  // embedding the key in the redirect URL. Fetch the page as a fallback.
+    lastKeyStatus = keyRes.status;
+    const keyUrl = keyRes.headers.get("location");
+    lastKeyBody = await keyRes.text().catch(() => "");
+    apiKey = extractKeyFromLocationOrBody(keyUrl, lastKeyBody);
+  } catch (error) {
+    // The POST may have created the key despite the auth-failure detection.
+    // Do NOT re-throw — fall through to the page-scrape fallback.
+    if (!(error instanceof ProviderAuthError)) throw error;
+    console.warn(`Key generation POST auth failure for userId=${userId}, will try page fallback`);
+  }
+
+  // Fallback: fetch the user page and look for the key with broad patterns.
   if (!apiKey) {
-    apiKey = await fetchKeyFromUserPage(userId, browserLikeHeaders);
+    // Small delay to let the provider commit the key.
+    await new Promise((r) => setTimeout(r, 800));
+    apiKey = await getKeyFromProviderPage(userId);
     if (apiKey) {
       console.log(`Key recovered from user page for userId=${userId}`);
     }
@@ -137,13 +125,13 @@ async function generateKeyForUser(
   if (!apiKey) {
     console.warn(
       "Key generation: no key in response or user page. Status:",
-      keyRes.status,
+      lastKeyStatus,
       "Body:",
-      keyBody.slice(0, 250)
+      lastKeyBody.slice(0, 250)
     );
   }
 
-  return { apiKey, lastKeyStatus: keyRes.status, lastKeyBody: keyBody };
+  return { apiKey, lastKeyStatus, lastKeyBody };
 }
 
 export async function POST(request: NextRequest) {
@@ -213,22 +201,22 @@ export async function POST(request: NextRequest) {
     let lastKeyBody = "";
 
     if (userId) {
-      try {
-        const existingUserResult = await generateKeyForUser(BASE_URL, userId, browserLikeHeaders);
-        apiKey = existingUserResult.apiKey;
-        lastKeyStatus = existingUserResult.lastKeyStatus;
-        lastKeyBody = existingUserResult.lastKeyBody;
+      // Before generating a new key, check if one already exists on the
+      // provider page (e.g. created by a previous attempt that failed to
+      // return the key to the client).
+      const existingProviderKey = await getKeyFromProviderPage(userId);
+      if (existingProviderKey) {
+        console.log(`Found existing provider key for userId=${userId}, reusing`);
+        apiKey = existingProviderKey;
+      } else {
+        // No key on the provider page yet — generate one.
+        const result = await generateKeyForUser(BASE_URL, userId, browserLikeHeaders);
+        apiKey = result.apiKey;
+        lastKeyStatus = result.lastKeyStatus;
+        lastKeyBody = result.lastKeyBody;
 
-        // Do NOT clear providerUserId when key parse fails — the user exists on
-        // the provider side. Clearing it causes a new orphan user to be created
-        // on the next click. Only wipe on a genuine auth failure below.
-      } catch (error) {
-        if (error instanceof ProviderAuthError) {
-          await clearAccountProviderUser(accountId);
-          userId = null;
-        } else {
-          throw error;
-        }
+        // NEVER clear providerUserId — the user still exists on the provider
+        // and clearing it creates orphan users on subsequent retries.
       }
     }
 
@@ -299,6 +287,7 @@ export async function POST(request: NextRequest) {
         accountId,
         email: accountEmail,
         providerUserId: userId,
+        providerEmail: trialEmail,
       });
 
       const createdUserResult = await generateKeyForUser(BASE_URL, userId, browserLikeHeaders);
@@ -327,6 +316,7 @@ export async function POST(request: NextRequest) {
       accountId,
       email: accountEmail,
       providerUserId: userId,
+      providerEmail: trialEmail,
       apiKey,
       apiKeyName: "EcomAgent Trial",
       plan: existingAccount?.plan ?? "free_trial",
