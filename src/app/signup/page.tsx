@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
+import { isDisposableEmail, DISPOSABLE_EMAIL_ERROR } from "@/lib/blocked-email-domains";
 import { Zap, Eye, EyeOff, CheckCircle } from "lucide-react";
 
 export default function SignupPage() {
@@ -20,6 +21,12 @@ export default function SignupPage() {
 
     if (password.length < 6) {
       setError("Password must be at least 6 characters.");
+      setLoading(false);
+      return;
+    }
+
+    if (isDisposableEmail(email)) {
+      setError(DISPOSABLE_EMAIL_ERROR);
       setLoading(false);
       return;
     }

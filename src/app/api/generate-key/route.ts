@@ -7,6 +7,7 @@ import {
   getProviderBaseUrl,
   providerFetch,
 } from "@/lib/server/provider-session";
+import { isDisposableEmail } from "@/lib/blocked-email-domains";
 
 function escapeRegExp(input: string) {
   return input.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -65,6 +66,13 @@ export async function POST(request: NextRequest) {
     if (!accountId) {
       return NextResponse.json(
         { success: false, error: "Missing account ID" },
+        { status: 400 }
+      );
+    }
+
+    if (accountEmail && isDisposableEmail(accountEmail)) {
+      return NextResponse.json(
+        { success: false, error: "Disposable email addresses are not allowed." },
         { status: 400 }
       );
     }
