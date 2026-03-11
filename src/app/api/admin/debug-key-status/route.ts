@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { getAccount } from "@/lib/server/account-store";
 import { checkProviderKeyStatus } from "@/lib/server/provider-keys";
-import { providerFetch } from "@/lib/server/provider-session";
 
 export const runtime = "nodejs";
 
@@ -40,37 +39,10 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(debug);
   }
 
-  // 1. Check key status via the normal function
+  // Check key status via direct API validation (no admin session needed)
   const status = await checkProviderKeyStatus(account.providerUserId, account.apiKey);
   debug.keyStatus = status;
-
-  // 2. Also fetch the raw page for inspection
-  try {
-    const res = await providerFetch(`/partner/users/${account.providerUserId}`, {
-      method: "GET",
-      cache: "no-store",
-    });
-    debug.rawPageStatus = res.status;
-    debug.rawPageUrl = res.url;
-    const body = await res.text().catch(() => "");
-    debug.rawPageLength = body.length;
-    debug.rawPageFirst500 = body.slice(0, 500);
-
-    // Check if the stored key prefix appears anywhere in the raw page
-    const prefix = account.apiKey.slice(0, 20);
-    debug.keyPrefixFoundInRawPage = body.includes(prefix);
-
-    // Find all sk-* patterns in the page
-    const allSkKeys = body.match(/\bsk-[A-Za-z0-9_-]{20,}\b/g) ?? [];
-    debug.allSkKeysFound = allSkKeys.map((k: string) => `${k.slice(0, 16)}...`);
-
-    // Check if page looks like a login page
-    const hasPasswordField = /<input[^>]+type=["']password["']/i.test(body);
-    const hasLoginText = /\b(login|sign in|session expired)\b/i.test(body);
-    debug.looksLikeLoginPage = hasPasswordField && hasLoginText;
-  } catch (e) {
-    debug.rawPageError = e instanceof Error ? e.message : String(e);
-  }
+  debug.method = "direct API key validation via /v1/models";
 
   return NextResponse.json(debug);
 }

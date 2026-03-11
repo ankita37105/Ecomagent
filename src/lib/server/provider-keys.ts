@@ -204,72 +204,44 @@ export async function generateProviderApiKey(
 export type KeyStatus = "present" | "absent" | "unknown";
 
 /**
- * Check whether the API key still exists on the provider user page.
+ * Validate the API key by making a lightweight call to the provider API.
+ * This bypasses admin panel authentication entirely — no session cookies needed.
  * Returns:
- *  - "present" — key found in the HTML
- *  - "absent"  — page loaded successfully but key is NOT in the HTML
- *  - "unknown" — could not determine (auth failure, network error, etc.)
+ *  - "present" — API accepted the key (not 401/403)
+ *  - "absent"  — API rejected the key (401/403 = key deleted/invalid)
+ *  - "unknown" — network error or unexpected failure
  */
-export async function checkProviderKeyStatus(userId: string, apiKey: string): Promise<KeyStatus> {
+export async function checkProviderKeyStatus(_userId: string, apiKey: string): Promise<KeyStatus> {
+  const baseUrl = getProviderBaseUrl();
   try {
-    console.log(`[keyStatus] Checking userId=${userId} apiKeyPrefix=${apiKey.slice(0, 16)}...`);
+    console.log(`[keyStatus] Validating key via API call, prefix=${apiKey.slice(0, 16)}...`);
 
-    // Use redirect: "follow" so we land on the actual page, not a 3xx shell.
-    const res = await providerFetch(`/partner/users/${userId}`, {
+    // Use /v1/models as a lightweight read-only endpoint.
+    // Most API gateways check auth before routing, so an invalid key
+    // gets 401 even if the endpoint doesn't exist.
+    const res = await fetch(`${baseUrl}/v1/models`, {
       method: "GET",
+      headers: {
+        "Authorization": `Bearer ${apiKey}`,
+        "x-api-key": apiKey,
+      },
       cache: "no-store",
+      signal: AbortSignal.timeout(10000),
     });
 
-    console.log(`[keyStatus] userId=${userId} response status=${res.status} url=${res.url}`);
+    console.log(`[keyStatus] API response status=${res.status}`);
 
-    // 404 means the provider user itself is gone
-    if (res.status === 404) {
-      console.log(`[keyStatus] userId=${userId} → absent (404)`);
-      return "absent";
-    }
-    // Auth issues → we can't tell, don't assume either way
+    // 401/403 = key is invalid/deleted
     if (res.status === 401 || res.status === 403) {
-      console.log(`[keyStatus] userId=${userId} → unknown (status ${res.status})`);
-      return "unknown";
-    }
-
-    const body = await res.text().catch(() => "");
-    console.log(`[keyStatus] userId=${userId} bodyLength=${body.length} bodyPreview=${JSON.stringify(body.slice(0, 300))}`);
-
-    if (!body || body.length < 200) {
-      console.log(`[keyStatus] userId=${userId} → unknown (body too short)`);
-      return "unknown";
-    }
-
-    // Check if this looks like the actual user page or a redirect/login page
-    const hasUserContent = body.includes(userId) || body.includes("api-key") || body.includes("API Key") || body.includes("api_key");
-    console.log(`[keyStatus] userId=${userId} hasUserContent=${hasUserContent}`);
-
-    // Use targeted key extraction (same patterns as getKeyFromProviderPage)
-    const activeKey = extractKeyFromHtml(body);
-    console.log(`[keyStatus] userId=${userId} extractKeyFromHtml=${activeKey ? activeKey.slice(0, 16) + "..." : "null"}`);
-
-    // Also do a raw prefix check to see if the key text appears ANYWHERE
-    const prefix = apiKey.slice(0, 20);
-    const rawPrefixFound = body.includes(prefix);
-    console.log(`[keyStatus] userId=${userId} rawPrefixInBody=${rawPrefixFound}`);
-
-    if (!activeKey) {
-      console.log(`[keyStatus] userId=${userId} → absent (no active key in HTML)`);
+      console.log(`[keyStatus] → absent (API returned ${res.status})`);
       return "absent";
     }
 
-    if (activeKey === apiKey) {
-      console.log(`[keyStatus] userId=${userId} → present (exact match)`);
-      return "present";
-    }
-
-    // Active key differs from what we have stored → our key was replaced/deleted
-    console.log(`[keyStatus] userId=${userId} → absent (active key differs: ${activeKey.slice(0, 16)}... vs ${apiKey.slice(0, 16)}...)`);
-    return "absent";
+    // Any other status (200, 404, 429, etc.) means the key was accepted
+    console.log(`[keyStatus] → present (API accepted key, status=${res.status})`);
+    return "present";
   } catch (error) {
-    console.error(`[keyStatus] userId=${userId} → unknown (error: ${error instanceof Error ? error.message : error})`);
-    if (error instanceof ProviderAuthError) return "unknown";
+    console.error(`[keyStatus] → unknown (API error: ${error instanceof Error ? error.message : error})`);
     return "unknown";
   }
 }
