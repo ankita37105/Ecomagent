@@ -28,6 +28,14 @@ CREATE TABLE IF NOT EXISTS payments (
   updated_at              TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- One signup per IP (stored as salted hash)
+CREATE TABLE IF NOT EXISTS signup_ip_locks (
+  ip_hash           TEXT PRIMARY KEY,
+  email             TEXT NOT NULL DEFAULT '',
+  created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 -- Disable RLS so the service role key can read/write freely from server-side routes
 ALTER TABLE accounts DISABLE ROW LEVEL SECURITY;
 ALTER TABLE payments DISABLE ROW LEVEL SECURITY;
+ALTER TABLE signup_ip_locks DISABLE ROW LEVEL SECURITY;
