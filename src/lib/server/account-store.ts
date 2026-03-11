@@ -135,6 +135,15 @@ export async function clearAccountApiKey(accountId: string): Promise<void> {
   if (error) throw new Error(error.message);
 }
 
+export async function clearAccountProviderUser(accountId: string): Promise<void> {
+  const sb = getSupabase();
+  const { error } = await sb
+    .from("accounts")
+    .update({ provider_user_id: null, updated_at: new Date().toISOString() })
+    .eq("account_id", accountId);
+  if (error) throw new Error(error.message);
+}
+
 export async function upsertPayment(params: {
   txnId: string;
   accountId: string;

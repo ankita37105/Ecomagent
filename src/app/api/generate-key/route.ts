@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { getAccount, upsertAccount, clearAccountApiKey } from "@/lib/server/account-store";
+import {
+  clearAccountApiKey,
+  clearAccountProviderUser,
+  getAccount,
+  upsertAccount,
+} from "@/lib/server/account-store";
 import {
   ProviderAuthError,
   ProviderConfigError,
@@ -51,6 +56,55 @@ function extractKeyFromLocationOrBody(location: string | null, body: string) {
 
 async function wait(ms: number) {
   await new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function generateKeyForUser(
+  baseUrl: string,
+  userId: string,
+  browserLikeHeaders: Record<string, string>
+) {
+  let apiKey: string | null = null;
+  let lastKeyStatus = 0;
+  let lastKeyBody = "";
+
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    if (attempt > 1) {
+      await wait(1000 * attempt);
+    }
+
+    const keyRes = await providerFetch(
+      `/partner/users/${userId}/api-keys/generate`,
+      {
+        method: "POST",
+        headers: {
+          ...browserLikeHeaders,
+          referer: `${baseUrl}/partner/users/${userId}`,
+        },
+        body: "key_name=EcomAgent+Trial&client_identifier=&description=Auto+Trial&rpm_limit=100&daily_limit=",
+        redirect: "manual",
+        cache: "no-store",
+        retryOnAuthFailure: true,
+      }
+    );
+
+    const keyUrl = keyRes.headers.get("location");
+    const keyBody = await keyRes.text().catch(() => "");
+
+    lastKeyStatus = keyRes.status;
+    lastKeyBody = keyBody;
+    apiKey = extractKeyFromLocationOrBody(keyUrl, keyBody);
+
+    if (apiKey) break;
+
+    console.warn(
+      `Key generation attempt ${attempt} failed. Status:`,
+      keyRes.status,
+      "Body:",
+      keyBody.slice(0, 250)
+    );
+  }
+
+  return { apiKey, lastKeyStatus, lastKeyBody };
 }
 
 export async function POST(request: NextRequest) {
@@ -109,6 +163,30 @@ export async function POST(request: NextRequest) {
     const trialEmail = `trial_${randomId}@ecomagent.in`;
 
     let userId: string | null = existingAccount?.providerUserId ?? null;
+    let apiKey: string | null = null;
+    let lastKeyStatus = 0;
+    let lastKeyBody = "";
+
+    if (userId) {
+      try {
+        const existingUserResult = await generateKeyForUser(BASE_URL, userId, browserLikeHeaders);
+        apiKey = existingUserResult.apiKey;
+        lastKeyStatus = existingUserResult.lastKeyStatus;
+        lastKeyBody = existingUserResult.lastKeyBody;
+
+        if (!apiKey) {
+          await clearAccountProviderUser(accountId);
+          userId = null;
+        }
+      } catch (error) {
+        if (error instanceof ProviderAuthError) {
+          await clearAccountProviderUser(accountId);
+          userId = null;
+        } else {
+          throw error;
+        }
+      }
+    }
 
     if (!userId) {
       const createRes = await providerFetch("/partner/users/create", {
@@ -178,49 +256,11 @@ export async function POST(request: NextRequest) {
         email: accountEmail,
         providerUserId: userId,
       });
-    }
 
-    let apiKey: string | null = null;
-    let lastKeyStatus = 0;
-    let lastKeyBody = "";
-
-    for (let attempt = 1; attempt <= 3; attempt++) {
-      if (attempt > 1) {
-        await wait(1000 * attempt);
-      }
-
-      const keyRes = await providerFetch(
-        `/partner/users/${userId}/api-keys/generate`,
-        {
-          method: "POST",
-          headers: {
-            ...browserLikeHeaders,
-            referer: `${BASE_URL}/partner/users/${userId}`,
-          },
-          body: "key_name=EcomAgent+Trial&client_identifier=&description=Auto+Trial&rpm_limit=100&daily_limit=",
-          redirect: "manual",
-          cache: "no-store",
-          retryOnAuthFailure: true,
-        }
-      );
-
-      const keyUrl = keyRes.headers.get("location");
-      const keyBody = await keyRes.text().catch(() => "");
-
-      lastKeyStatus = keyRes.status;
-      lastKeyBody = keyBody;
-      apiKey = extractKeyFromLocationOrBody(keyUrl, keyBody);
-
-      if (apiKey) {
-        break;
-      }
-
-      console.warn(
-        `Key generation attempt ${attempt} failed. Status:`,
-        keyRes.status,
-        "Body:",
-        keyBody.slice(0, 250)
-      );
+      const createdUserResult = await generateKeyForUser(BASE_URL, userId, browserLikeHeaders);
+      apiKey = createdUserResult.apiKey;
+      lastKeyStatus = createdUserResult.lastKeyStatus;
+      lastKeyBody = createdUserResult.lastKeyBody;
     }
 
     if (!apiKey) {
