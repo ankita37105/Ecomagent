@@ -13,9 +13,9 @@ function extractHiddenInputs(html: string): Array<[string, string]> {
   return pairs;
 }
 
-function extractKeyFromLocationOrBody(location: string | null, body: string) {
-  if (location) {
-    const queryPart = location.includes("?") ? location.split("?")[1] : "";
+function extractKeyFromLocationOrBody(locationOrUrl: string | null, body: string) {
+  if (locationOrUrl) {
+    const queryPart = locationOrUrl.includes("?") ? locationOrUrl.split("?")[1] : "";
     const fromLocation = new URLSearchParams(queryPart).get("new_key");
     if (fromLocation) return fromLocation;
   }
@@ -168,9 +168,9 @@ export async function generateProviderApiKey(
   const body = new URLSearchParams({
     key_name: keyName,
     client_identifier: "",
-    description: "Auto Trial",
-    rpm_limit: "10",
-    daily_limit: "100",
+    description: "",
+    rpm_limit: "",
+    daily_limit: "",
   }).toString();
 
   const browserLikeHeaders: Record<string, string> = {
@@ -188,13 +188,13 @@ export async function generateProviderApiKey(
       method: "POST",
       headers: browserLikeHeaders,
       body,
-      redirect: "manual",
+      redirect: "follow",
       cache: "no-store",
       retryOnAuthFailure: false,
       sessionCookie,
     });
 
-    const location = res.headers.get("location");
+    const location = res.headers.get("location") ?? res.url;
     const text = await res.text().catch(() => "");
     const key = extractKeyFromLocationOrBody(location, text);
     if (key) return key;

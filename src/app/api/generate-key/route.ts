@@ -91,9 +91,9 @@ async function providerUserPageExists(userId: string, sessionCookie: string) {
   }
 }
 
-function extractKeyFromLocationOrBody(location: string | null, body: string) {
-  if (location) {
-    const queryPart = location.includes("?") ? location.split("?")[1] : "";
+function extractKeyFromLocationOrBody(locationOrUrl: string | null, body: string) {
+  if (locationOrUrl) {
+    const queryPart = locationOrUrl.includes("?") ? locationOrUrl.split("?")[1] : "";
     const query = new URLSearchParams(queryPart);
     const fromLocation =
       query.get("new_key") ??
@@ -103,7 +103,7 @@ function extractKeyFromLocationOrBody(location: string | null, body: string) {
     if (fromLocation) return decodeURIComponent(fromLocation);
 
     // Some providers include the key directly in the URL or fragment.
-    const inlineFromLocation = location.match(/\b(sk-[A-Za-z0-9_-]{20,})\b/);
+    const inlineFromLocation = locationOrUrl.match(/\b(sk-[A-Za-z0-9_-]{20,})\b/);
     if (inlineFromLocation?.[1]) return inlineFromLocation[1];
   }
 
@@ -152,8 +152,8 @@ async function generateKeyForUser(
           ...browserLikeHeaders,
           referer: `${baseUrl}/partner/users/${userId}`,
         },
-        body: "key_name=EcomAgent+Trial&client_identifier=&description=Auto+Trial&rpm_limit=10&daily_limit=100",
-        redirect: "manual",
+        body: "key_name=Partner+Generated+Key&client_identifier=&description=&rpm_limit=&daily_limit=",
+        redirect: "follow",
         cache: "no-store",
         retryOnAuthFailure: false,
         sessionCookie,
@@ -161,7 +161,7 @@ async function generateKeyForUser(
     );
 
     lastKeyStatus = keyRes.status;
-    const keyUrl = keyRes.headers.get("location");
+    const keyUrl = keyRes.headers.get("location") ?? keyRes.url;
     lastKeyBody = await keyRes.text().catch(() => "");
     apiKey = extractKeyFromLocationOrBody(keyUrl, lastKeyBody);
   } catch (error) {
