@@ -12,6 +12,9 @@ export type AccountRecord = {
   apiKey?: string;
   apiKeyName?: string;
   providerUserId?: string;
+  planStartsAt?: string;
+  planEndsAt?: string;
+  apiKeyCreatedAt?: string;
   updatedAt: string;
 };
 
@@ -53,6 +56,9 @@ function mapAccountRow(row: Record<string, any>): AccountRecord {
     apiKey: row.api_key ?? undefined,
     apiKeyName: row.api_key_name ?? undefined,
     providerUserId: row.provider_user_id ?? undefined,
+    planStartsAt: row.plan_starts_at ?? undefined,
+    planEndsAt: row.plan_ends_at ?? undefined,
+    apiKeyCreatedAt: row.api_key_created_at ?? undefined,
     updatedAt: row.updated_at as string,
   };
 }
@@ -98,11 +104,19 @@ export async function upsertAccount(params: {
   apiKey?: string;
   apiKeyName?: string;
   providerUserId?: string;
+  /** Pass true when a new paid plan is being activated to stamp a fresh 30-day window. */
+  stampValidity?: boolean;
 }): Promise<AccountRecord> {
   const sb = getSupabase();
   const existing = await getAccount(params.accountId);
   const nextPlan: PlanSlug = params.plan ?? existing?.plan ?? "free_trial";
   const limits = PLAN_DETAILS[nextPlan];
+
+  const now = new Date();
+  const startsAt = params.stampValidity ? now.toISOString() : (existing?.planStartsAt ?? null);
+  const endsAt = params.stampValidity
+    ? new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString()
+    : (existing?.planEndsAt ?? null);
 
   const row = {
     account_id: params.accountId,
@@ -113,7 +127,14 @@ export async function upsertAccount(params: {
     api_key: params.apiKey ?? existing?.apiKey ?? null,
     api_key_name: params.apiKeyName ?? existing?.apiKeyName ?? null,
     provider_user_id: params.providerUserId ?? existing?.providerUserId ?? null,
-    updated_at: new Date().toISOString(),
+    plan_starts_at: startsAt,
+    plan_ends_at: endsAt,
+    // Stamp api_key_created_at only when a brand-new key is being stored.
+    api_key_created_at:
+      params.apiKey != null && params.apiKey !== existing?.apiKey
+        ? now.toISOString()
+        : (existing?.apiKeyCreatedAt ?? null),
+    updated_at: now.toISOString(),
   };
 
   const { data, error } = await sb
@@ -130,7 +151,7 @@ export async function clearAccountApiKey(accountId: string): Promise<void> {
   const sb = getSupabase();
   const { error } = await sb
     .from("accounts")
-    .update({ api_key: null, api_key_name: null, updated_at: new Date().toISOString() })
+    .update({ api_key: null, api_key_name: null, api_key_created_at: null, updated_at: new Date().toISOString() })
     .eq("account_id", accountId);
   if (error) throw new Error(error.message);
 }
@@ -142,6 +163,20 @@ export async function clearAccountProviderUser(accountId: string): Promise<void>
     .update({ provider_user_id: null, updated_at: new Date().toISOString() })
     .eq("account_id", accountId);
   if (error) throw new Error(error.message);
+}
+
+export async function getExpiredTrialAccounts(): Promise<AccountRecord[]> {
+  const sb = getSupabase();
+  const cutoff = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString();
+  const { data, error } = await sb
+    .from("accounts")
+    .select("*")
+    .eq("plan", "free_trial")
+    .not("api_key", "is", null)
+    .not("api_key_created_at", "is", null)
+    .lt("api_key_created_at", cutoff);
+  if (error) throw new Error(error.message);
+  return (data ?? []).map(mapAccountRow);
 }
 
 export async function upsertPayment(params: {

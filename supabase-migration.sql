@@ -10,8 +10,16 @@ CREATE TABLE IF NOT EXISTS accounts (
   api_key            TEXT,
   api_key_name       TEXT,
   provider_user_id   TEXT,
+  plan_starts_at     TIMESTAMPTZ,
+  plan_ends_at       TIMESTAMPTZ,
+  api_key_created_at TIMESTAMPTZ,
   updated_at         TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- Add validity columns to existing deployments
+ALTER TABLE accounts ADD COLUMN IF NOT EXISTS plan_starts_at TIMESTAMPTZ;
+ALTER TABLE accounts ADD COLUMN IF NOT EXISTS plan_ends_at       TIMESTAMPTZ;
+ALTER TABLE accounts ADD COLUMN IF NOT EXISTS api_key_created_at TIMESTAMPTZ;
 
 -- Payments table
 CREATE TABLE IF NOT EXISTS payments (

@@ -20,7 +20,7 @@ type UsageData  = {
   recentLogs: UsageLog[];
   modelBreakdown: ModelUsage[];
 };
-type PlanInfo   = { name: string; requestLimit: string; tokenLimit: string };
+type PlanInfo   = { name: string; requestLimit: string; tokenLimit: string; planStartsAt?: string; planEndsAt?: string };
 
 /* â”€â”€ small shared sub-components â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 function StatCard({
@@ -93,7 +93,7 @@ export default function DashboardPage() {
   const [usageLoading, setUsageLoading] = useState(false);
   const [usagePage, setUsagePage] = useState(1);
 
-  const [plan, setPlan] = useState<PlanInfo>({ name: "Free Trial", requestLimit: "100", tokenLimit: "10M" });
+  const [plan, setPlan] = useState<PlanInfo>({ name: "Free Trial", requestLimit: "100", tokenLimit: "10M", planStartsAt: undefined, planEndsAt: undefined });
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -129,6 +129,8 @@ export default function DashboardPage() {
           name: planLabel,
           requestLimit: subscription.requestLimit || "100",
           tokenLimit: subscription.tokenLimit || "10M",
+          planStartsAt: subscription.planStartsAt ?? undefined,
+          planEndsAt: subscription.planEndsAt ?? undefined,
         });
 
         if (subscription.apiKey) {
@@ -924,16 +926,44 @@ export default function DashboardPage() {
               <SectionHeader title="Billing" sub="Upgrade your plan with crypto payments." />
 
               {/* Current plan card */}
-              <div style={{ background: "#111", border: "1px solid #2a2a2a", borderRadius: 14, padding: "18px 22px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
-                <div>
-                  <p style={{ fontSize: 11, color: "#555", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 5 }}>Current Plan</p>
-                  <p style={{ fontSize: 18, fontWeight: 700, color: "#f59e0b" }}>{plan.name}</p>
-                  <p style={{ fontSize: 12, color: "#555", marginTop: 3 }}>{plan.requestLimit} requests Â· {plan.tokenLimit} tokens</p>
-                </div>
-                <span style={{ fontSize: 11, fontWeight: 700, padding: "5px 12px", borderRadius: 999, background: "rgba(34,197,94,0.1)", border: "1px solid rgba(34,197,94,0.2)", color: "#22c55e", textTransform: "uppercase", letterSpacing: "0.07em" }}>
-                  Active
-                </span>
-              </div>
+              {(() => {
+                const now = new Date();
+                const endsAt = plan.planEndsAt ? new Date(plan.planEndsAt) : null;
+                const expired = endsAt ? endsAt < now : false;
+                const daysLeft = endsAt ? Math.ceil((endsAt.getTime() - now.getTime()) / 86400000) : null;
+                const urgent = daysLeft !== null && !expired && daysLeft <= 5;
+                return (
+                  <div style={{ background: "#111", border: "1px solid #2a2a2a", borderRadius: 14, padding: "18px 22px", display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                      <p style={{ fontSize: 11, color: "#555", textTransform: "uppercase", letterSpacing: "0.1em" }}>Current Plan</p>
+                      <p style={{ fontSize: 18, fontWeight: 700, color: "#f59e0b" }}>{plan.name}</p>
+                      <p style={{ fontSize: 12, color: "#555" }}>{plan.requestLimit} requests · {plan.tokenLimit} tokens</p>
+                      {plan.planStartsAt && (
+                        <p style={{ fontSize: 12, color: "#555", marginTop: 4 }}>
+                          Started:{" "}
+                          <span style={{ color: "#999" }}>
+                            {new Date(plan.planStartsAt).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })}
+                          </span>
+                        </p>
+                      )}
+                      {endsAt && (
+                        <p style={{ fontSize: 12, marginTop: 2 }}>
+                          <span style={{ color: "#555" }}>Expires: </span>
+                          <span style={{ color: expired ? "#ef4444" : urgent ? "#f97316" : "#22c55e", fontWeight: 600 }}>
+                            {endsAt.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })}
+                          </span>
+                          <span style={{ marginLeft: 6, fontSize: 11, color: expired ? "#ef4444" : urgent ? "#f97316" : "#666" }}>
+                            {expired ? "(expired)" : `(${daysLeft}d left)`}
+                          </span>
+                        </p>
+                      )}
+                    </div>
+                    <span style={{ fontSize: 11, fontWeight: 700, padding: "5px 12px", borderRadius: 999, background: expired ? "rgba(239,68,68,0.1)" : "rgba(34,197,94,0.1)", border: `1px solid ${expired ? "rgba(239,68,68,0.2)" : "rgba(34,197,94,0.2)"}`, color: expired ? "#ef4444" : "#22c55e", textTransform: "uppercase", letterSpacing: "0.07em" }}>
+                      {expired ? "Expired" : "Active"}
+                    </span>
+                  </div>
+                );
+              })()}
 
               {/* Upgrade plans */}
               <p style={{ fontSize: 12, fontWeight: 700, color: "#555", textTransform: "uppercase", letterSpacing: "0.1em" }}>Upgrade with Crypto</p>

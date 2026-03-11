@@ -114,6 +114,7 @@ export async function POST(request: NextRequest) {
         apiKey: existing?.apiKey,
         apiKeyName: existing?.apiKeyName,
         providerUserId: existing?.providerUserId,
+        stampValidity: true,
       });
     } else if (status < 0) {
       console.log(`Payment failed/cancelled for ${buyerEmail}: ${statusText}`);
