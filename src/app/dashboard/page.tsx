@@ -138,8 +138,11 @@ export default function DashboardPage() {
             createdAt: subscription.updatedAt || new Date().toISOString(),
             userId: subscription.providerUserId || "",
           };
-          setApiKey((prev) => prev ?? restoredKey);
+          setApiKey(restoredKey);
           localStorage.setItem(`ecom_api_key_${user.id}`, JSON.stringify(restoredKey));
+        } else {
+          setApiKey(null);
+          localStorage.removeItem(`ecom_api_key_${user.id}`);
         }
       } catch {
         // ignore subscription sync errors in UI
