@@ -95,7 +95,7 @@ curl "$BASE_URL/chat/completions" \\
   -H "Authorization: Bearer $API_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{
-    "model": "claude-opus-4.5",
+    "model": "claude-opus-4.6",
     "messages": [
       {"role": "user", "content": "Hello!"}
     ]
@@ -112,7 +112,7 @@ curl "$BASE_URL/chat/completions" \\
   -H "Authorization: Bearer $API_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{
-    "model": "claude-opus-4.5",
+    "model": "claude-opus-4.6",
     "messages": [
       {"role": "user", "content": "Hello!"}
     ],
@@ -145,7 +145,7 @@ curl "$BASE_URL/chat/completions" \\
     },
     "total_tokens": 29
   },
-  "model": "claude-opus-4.5"
+  "model": "claude-opus-4.6"
 }`}
               />
             </div>
@@ -173,7 +173,7 @@ def main():
     )
 
     response = client.chat.completions.create(
-        model="claude-opus-4.5",
+        model="claude-opus-4.6",
         messages=[
             {"role": "user", "content": "Hello!"}
         ],
@@ -218,7 +218,7 @@ def main():
             "Content-Type": "application/json",
         },
         json={
-            "model": "claude-opus-4.5",
+            "model": "claude-opus-4.6",
             "messages": [
                 {"role": "user", "content": "Hello!"}
             ],
@@ -240,11 +240,11 @@ if __name__ == "__main__":
               <h4 className="text-base font-semibold mb-3">Expected Output</h4>
               <CodeBlock
                 lang="text"
-                code={`data: {"choices":[{"index":0,"delta":{"content":"Hello! How are","role":"assistant"}}],"created":1769095541,"id":"msg_vrtx_015r8zkxSn7FPCuAziyWJjgp","model":"claude-opus-4.5"}
+                code={`data: {"choices":[{"index":0,"delta":{"content":"Hello! How are","role":"assistant"}}],"created":1769095541,"id":"msg_vrtx_015r8zkxSn7FPCuAziyWJjgp","model":"claude-opus-4.6"}
 
-data: {"choices":[{"index":0,"delta":{"content":" you doing today?","role":"assistant"}}],"created":1769095541,"id":"msg_vrtx_015r8zkxSn7FPCuAziyWJjgp","model":"claude-opus-4.5"}
+data: {"choices":[{"index":0,"delta":{"content":" you doing today?","role":"assistant"}}],"created":1769095541,"id":"msg_vrtx_015r8zkxSn7FPCuAziyWJjgp","model":"claude-opus-4.6"}
 
-data: {"choices":[{"finish_reason":"stop","index":0,"delta":{"content":null}}],"created":1769095541,"id":"msg_vrtx_015r8zkxSn7FPCuAziyWJjgp","usage":{"completion_tokens":20,"prompt_tokens":9,"prompt_tokens_details":{"cached_tokens":0},"total_tokens":29},"model":"claude-opus-4.5"}
+data: {"choices":[{"finish_reason":"stop","index":0,"delta":{"content":null}}],"created":1769095541,"id":"msg_vrtx_015r8zkxSn7FPCuAziyWJjgp","usage":{"completion_tokens":20,"prompt_tokens":9,"prompt_tokens_details":{"cached_tokens":0},"total_tokens":29},"model":"claude-opus-4.6"}
 
 data: [DONE]`}
               />
@@ -269,7 +269,7 @@ API_KEY = "YOUR_API_KEY"
 BASE_URL = "https://api.ecomagent.in/v1"
 
 def run_chat_example():
-    print("\\n--- Testing Model: claude-opus-4.5 ---")
+    print("\\n--- Testing Model: claude-opus-4.6 ---")
     url = f"{BASE_URL}/chat/completions"
     headers = {
         "Authorization": f"Bearer {API_KEY}",
@@ -277,7 +277,7 @@ def run_chat_example():
     }
 
     payload = {
-        "model": "claude-opus-4.5",
+        "model": "claude-opus-4.6",
         "messages": [
             {"role": "user", "content": "Hello! Are you working?"}
         ]
@@ -303,7 +303,7 @@ if __name__ == "__main__":
               <h4 className="text-base font-semibold mb-3">Expected Output</h4>
               <CodeBlock
                 lang="text"
-                code={`--- Testing Model: claude-opus-4.5 ---
+                code={`--- Testing Model: claude-opus-4.6 ---
 Status Code: 200
 Response Body:
 {
@@ -326,7 +326,7 @@ Response Body:
     },
     "total_tokens": 35
   },
-  "model": "claude-opus-4.5"
+  "model": "claude-opus-4.6"
 }`}
               />
             </div>
@@ -357,10 +357,10 @@ Response Body:
   "env": {
     "ANTHROPIC_BASE_URL": "https://api.ecomagent.in/",
     "ANTHROPIC_AUTH_TOKEN": "YOUR_API_KEY",
-    "ANTHROPIC_MODEL": "claude-opus-4.5",
-    "ANTHROPIC_DEFAULT_SONNET_MODEL": "claude-opus-4.5",
-    "ANTHROPIC_SMALL_FAST_MODEL": "claude-opus-4.5",
-    "ANTHROPIC_DEFAULT_HAIKU_MODEL": "claude-opus-4.5",
+    "ANTHROPIC_MODEL": "claude-opus-4.6",
+    "ANTHROPIC_DEFAULT_SONNET_MODEL": "claude-sonnet-4-6",
+    "ANTHROPIC_SMALL_FAST_MODEL": "claude-opus-4.6",
+    "ANTHROPIC_DEFAULT_HAIKU_MODEL": "claude-opus-4.6",
     "DISABLE_NON_ESSENTIAL_MODEL_CALLS": "1",
     "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
     "CLAUDE_CODE_ATTRIBUTION_HEADER": "0"
