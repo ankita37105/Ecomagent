@@ -311,7 +311,7 @@ export async function POST(request: NextRequest) {
         body: `email=${encodeURIComponent(trialEmail)}&password_option=generate&password=&request_limit=100&rpm_limit=10`,
         redirect: "manual",
         cache: "no-store",
-        retryOnAuthFailure: true,
+        retryOnAuthFailure: false,
       });
 
       const userUrl = createRes.headers.get("location");

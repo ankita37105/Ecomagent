@@ -44,24 +44,31 @@ function isPlaceholderCookie(cookie: string) {
   return cookie.includes(PLACEHOLDER_COOKIE) || cookie.length < 20;
 }
 
+function hasLoginCredentials(config: ProviderConfig) {
+  return Boolean(config.loginUsername && config.loginPassword);
+}
+
 function getProviderConfig(): ProviderConfig {
   const baseUrl = safeTrim(process.env.PROVIDER_BASE_URL).replace(/\/+$/, "");
   if (!baseUrl) {
     throw new ProviderConfigError("PROVIDER_BASE_URL is missing");
   }
 
-  const rawCookie = safeTrim(process.env.PROVIDER_SESSION_COOKIE);
-  const staticCookie = rawCookie && !isPlaceholderCookie(rawCookie) ? rawCookie : "";
-
   const loginUsername = safeTrim(
     process.env.PROVIDER_LOGIN_EMAIL ?? process.env.PROVIDER_LOGIN_USERNAME
   );
   const loginPassword = safeTrim(process.env.PROVIDER_LOGIN_PASSWORD);
 
-  const hasStaticCookie = Boolean(staticCookie);
-  const hasLoginCredentials = Boolean(loginUsername && loginPassword);
+  const rawCookie = safeTrim(process.env.PROVIDER_SESSION_COOKIE);
+  const hasStaticCookie = Boolean(rawCookie && !isPlaceholderCookie(rawCookie));
+  const hasDynamicLogin = Boolean(loginUsername && loginPassword);
+  const staticCookie = hasDynamicLogin
+    ? ""
+    : hasStaticCookie
+      ? rawCookie
+      : "";
 
-  if (!hasStaticCookie && !hasLoginCredentials) {
+  if (!hasStaticCookie && !hasDynamicLogin) {
     throw new ProviderConfigError(
       "Provider auth is not configured. Set PROVIDER_SESSION_COOKIE or PROVIDER_LOGIN_EMAIL/PROVIDER_LOGIN_PASSWORD"
     );
@@ -233,7 +240,8 @@ async function loginAndGetSession(config: ProviderConfig) {
 
   const loginUrl = toProviderUrl(config.baseUrl, config.loginPath);
 
-  const initialCookie = mergeCookies(config.staticCookie, runtimeSessionCookie);
+  // Direct-login mode: ignore any stale static cookie and build a fresh session.
+  const initialCookie = hasLoginCredentials(config) ? "" : mergeCookies(config.staticCookie, runtimeSessionCookie);
 
   const loginPageRes = await fetchWithCookie(
     loginUrl,
@@ -317,6 +325,10 @@ async function ensureRefreshCookie(config: ProviderConfig) {
 }
 
 async function getInitialCookie(config: ProviderConfig) {
+  if (hasLoginCredentials(config)) {
+    return ensureRefreshCookie(config);
+  }
+
   const merged = mergeCookies(config.staticCookie, runtimeSessionCookie);
   if (merged) return merged;
   return ensureRefreshCookie(config);
