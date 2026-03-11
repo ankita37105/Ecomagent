@@ -183,6 +183,8 @@ export async function generateProviderApiKey(
   };
 
   // Single attempt — retryOnAuthFailure false to prevent duplicate key creation.
+  // skipAuthFailureCheck true because the redirect goes to the user profile page
+  // which has a password field and would be falsely detected as a login page.
   try {
     const res = await providerFetch(`/partner/users/${userId}/api-keys/generate`, {
       method: "POST",
@@ -191,11 +193,15 @@ export async function generateProviderApiKey(
       redirect: "follow",
       cache: "no-store",
       retryOnAuthFailure: false,
+      skipAuthFailureCheck: true,
       sessionCookie,
     });
 
-    const location = res.headers.get("location") ?? res.url;
+    const locationHeader = res.headers.get("location");
+    const finalUrl = res.url || "";
+    const location = locationHeader ?? (finalUrl || null);
     const text = await res.text().catch(() => "");
+    console.log(`[generateProviderApiKey] userId=${userId} status=${res.status} location=${locationHeader ?? "null"} finalUrl=${finalUrl.slice(0, 120)}`);
     const key = extractKeyFromLocationOrBody(location, text);
     if (key) return key;
   } catch {

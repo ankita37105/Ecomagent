@@ -179,6 +179,9 @@ function extractHiddenFields(html: string) {
 }
 
 async function looksLikeAuthFailure(response: Response) {
+  // A redirect to a URL containing new_key= is a successful key generation — never an auth failure.
+  if (response.url && response.url.includes("new_key=")) return false;
+
   if (response.status === 401 || response.status === 403) return true;
 
   const location = response.headers.get("location") ?? "";
@@ -194,6 +197,16 @@ async function looksLikeAuthFailure(response: Response) {
     contentType.includes("text/html");
 
   if (!shouldInspectBody) return false;
+
+  // If the final URL does NOT look like a login/auth page, skip the expensive body
+  // inspection. This prevents false positives on authenticated admin pages that happen
+  // to contain password fields (e.g. provider's user-edit page showing a "change
+  // password" form).  When a session IS expired the provider redirects to /login,
+  // changing response.url — the check below would then allow body inspection.
+  const finalUrl = response.url ?? "";
+  const urlSuggestsLoginPage =
+    !finalUrl || /\/(login|sign-?in|signin|auth)\b/i.test(finalUrl);
+  if (!urlSuggestsLoginPage) return false;
 
   const body = await response
     .clone()
@@ -345,6 +358,10 @@ export function getProviderBaseUrl() {
 type ProviderFetchInit = RequestInit & {
   retryOnAuthFailure?: boolean;
   sessionCookie?: string;
+  /** Skip the looksLikeAuthFailure check entirely for this request. Use for
+   *  POST endpoints whose success response (e.g. a user-profile page after
+   *  key generation) would be falsely detected as a login page. */
+  skipAuthFailureCheck?: boolean;
 };
 
 function isIdempotentMethod(method: string) {
@@ -352,7 +369,7 @@ function isIdempotentMethod(method: string) {
 }
 
 export async function providerFetch(pathOrUrl: string, init: ProviderFetchInit = {}) {
-  const { retryOnAuthFailure, sessionCookie, ...requestInit } = init;
+  const { retryOnAuthFailure, sessionCookie, skipAuthFailureCheck, ...requestInit } = init;
   const method = (requestInit.method ?? "GET").toUpperCase();
   const shouldRetryOnAuthFailure =
     retryOnAuthFailure ?? isIdempotentMethod(method);
@@ -367,7 +384,9 @@ export async function providerFetch(pathOrUrl: string, init: ProviderFetchInit =
   const firstCookie = mergedSessionCookie || await getInitialCookie(config);
   let response = await fetchWithCookie(url, requestInit, firstCookie);
 
-  if (await looksLikeAuthFailure(response)) {
+  // skipAuthFailureCheck: caller guarantees the response is not a login page
+  // (e.g. key-generation POST whose success response is the user profile page).
+  if (!skipAuthFailureCheck && await looksLikeAuthFailure(response)) {
     if (!shouldRetryOnAuthFailure) {
       throw new ProviderAuthError("Provider authentication failed for request");
     }

@@ -143,6 +143,9 @@ async function generateKeyForUser(
   // Single generation attempt — retryOnAuthFailure FALSE to prevent duplicate
   // key creation on the provider when the first POST actually succeeds but
   // the response is misinterpreted as an auth failure.
+  // skipAuthFailureCheck TRUE because after key generation the provider redirects
+  // to the user profile page which contains a password field — this would have
+  // been incorrectly detected as a login page causing ProviderAuthError to be thrown.
   try {
     const keyRes = await providerFetch(
       `/partner/users/${userId}/api-keys/generate`,
@@ -156,14 +159,29 @@ async function generateKeyForUser(
         redirect: "follow",
         cache: "no-store",
         retryOnAuthFailure: false,
+        skipAuthFailureCheck: true,
         sessionCookie,
       }
     );
 
     lastKeyStatus = keyRes.status;
-    const keyUrl = keyRes.headers.get("location") ?? keyRes.url;
+    const locationHeader = keyRes.headers.get("location");
+    const finalUrl = keyRes.url || "";
+    const keyUrl = locationHeader ?? (finalUrl || null);
     lastKeyBody = await keyRes.text().catch(() => "");
+
+    console.log(
+      `[generateKey] POST userId=${userId} status=${lastKeyStatus}` +
+      ` location=${locationHeader ?? "null"} finalUrl=${finalUrl.slice(0, 120)}` +
+      ` bodyLen=${lastKeyBody.length}`
+    );
+
     apiKey = extractKeyFromLocationOrBody(keyUrl, lastKeyBody);
+    if (apiKey) {
+      console.log(`[generateKey] Key extracted from redirect URL for userId=${userId}`);
+    } else {
+      console.warn(`[generateKey] No key in redirect URL or body for userId=${userId}. keyUrl=${keyUrl?.slice(0, 120)}`);
+    }
   } catch (error) {
     // The POST may have created the key despite the auth-failure detection.
     // Do NOT re-throw — fall through to the page-scrape fallback.
