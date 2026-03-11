@@ -29,6 +29,7 @@ export async function GET(
 
   if (account.apiKey && account.providerUserId) {
     const status = await checkProviderKeyStatus(account.providerUserId, account.apiKey);
+    console.log(`[subscription] accountId=${accountId} providerUserId=${account.providerUserId} keyStatus=${status}`);
     if (status === "absent") {
       // Key definitively gone on the provider — clear it so user can regenerate
       await clearAccountApiKey(accountId);

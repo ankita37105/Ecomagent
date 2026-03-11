@@ -122,7 +122,6 @@ export async function getKeyFromProviderPage(userId: string): Promise<string | n
     const res = await providerFetch(`/partner/users/${userId}`, {
       method: "GET",
       cache: "no-store",
-      redirect: "manual",
     });
     if (res.status >= 400) return null;
     const html = await res.text().catch(() => "");
@@ -213,10 +212,10 @@ export type KeyStatus = "present" | "absent" | "unknown";
  */
 export async function checkProviderKeyStatus(userId: string, apiKey: string): Promise<KeyStatus> {
   try {
+    // Use redirect: "follow" so we land on the actual page, not a 3xx shell.
     const res = await providerFetch(`/partner/users/${userId}`, {
       method: "GET",
       cache: "no-store",
-      redirect: "manual",
     });
 
     // 404 means the provider user itself is gone
@@ -225,13 +224,29 @@ export async function checkProviderKeyStatus(userId: string, apiKey: string): Pr
     if (res.status === 401 || res.status === 403) return "unknown";
 
     const body = await res.text().catch(() => "");
-    if (!body) return "unknown";
+    if (!body || body.length < 200) return "unknown";
 
-    // Match by stable fragments to tolerate masked rendering differences.
-    const prefix = apiKey.slice(0, 20);
-    const suffix = apiKey.slice(-10);
-    return (body.includes(prefix) || body.includes(suffix)) ? "present" : "absent";
+    // Use targeted key extraction (same patterns as getKeyFromProviderPage)
+    // instead of raw prefix/suffix text search which can false-positive
+    // on logs, history sections, JS variables, etc.
+    const activeKey = extractKeyFromHtml(body);
+
+    if (!activeKey) {
+      // Page loaded fine but no key pattern found → key is genuinely absent
+      console.log(`[keyStatus] userId=${userId} → absent (no active key in HTML)`);
+      return "absent";
+    }
+
+    // Compare the found active key against the expected key
+    if (activeKey === apiKey) {
+      return "present";
+    }
+
+    // Active key differs from what we have stored → our key was replaced/deleted
+    console.log(`[keyStatus] userId=${userId} → absent (active key differs)`);
+    return "absent";
   } catch (error) {
+    console.error(`[keyStatus] userId=${userId} → unknown (error: ${error instanceof Error ? error.message : error})`);
     if (error instanceof ProviderAuthError) return "unknown";
     return "unknown";
   }
