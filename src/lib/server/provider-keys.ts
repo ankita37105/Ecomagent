@@ -212,38 +212,60 @@ export type KeyStatus = "present" | "absent" | "unknown";
  */
 export async function checkProviderKeyStatus(userId: string, apiKey: string): Promise<KeyStatus> {
   try {
+    console.log(`[keyStatus] Checking userId=${userId} apiKeyPrefix=${apiKey.slice(0, 16)}...`);
+
     // Use redirect: "follow" so we land on the actual page, not a 3xx shell.
     const res = await providerFetch(`/partner/users/${userId}`, {
       method: "GET",
       cache: "no-store",
     });
 
+    console.log(`[keyStatus] userId=${userId} response status=${res.status} url=${res.url}`);
+
     // 404 means the provider user itself is gone
-    if (res.status === 404) return "absent";
+    if (res.status === 404) {
+      console.log(`[keyStatus] userId=${userId} → absent (404)`);
+      return "absent";
+    }
     // Auth issues → we can't tell, don't assume either way
-    if (res.status === 401 || res.status === 403) return "unknown";
+    if (res.status === 401 || res.status === 403) {
+      console.log(`[keyStatus] userId=${userId} → unknown (status ${res.status})`);
+      return "unknown";
+    }
 
     const body = await res.text().catch(() => "");
-    if (!body || body.length < 200) return "unknown";
+    console.log(`[keyStatus] userId=${userId} bodyLength=${body.length} bodyPreview=${JSON.stringify(body.slice(0, 300))}`);
+
+    if (!body || body.length < 200) {
+      console.log(`[keyStatus] userId=${userId} → unknown (body too short)`);
+      return "unknown";
+    }
+
+    // Check if this looks like the actual user page or a redirect/login page
+    const hasUserContent = body.includes(userId) || body.includes("api-key") || body.includes("API Key") || body.includes("api_key");
+    console.log(`[keyStatus] userId=${userId} hasUserContent=${hasUserContent}`);
 
     // Use targeted key extraction (same patterns as getKeyFromProviderPage)
-    // instead of raw prefix/suffix text search which can false-positive
-    // on logs, history sections, JS variables, etc.
     const activeKey = extractKeyFromHtml(body);
+    console.log(`[keyStatus] userId=${userId} extractKeyFromHtml=${activeKey ? activeKey.slice(0, 16) + "..." : "null"}`);
+
+    // Also do a raw prefix check to see if the key text appears ANYWHERE
+    const prefix = apiKey.slice(0, 20);
+    const rawPrefixFound = body.includes(prefix);
+    console.log(`[keyStatus] userId=${userId} rawPrefixInBody=${rawPrefixFound}`);
 
     if (!activeKey) {
-      // Page loaded fine but no key pattern found → key is genuinely absent
       console.log(`[keyStatus] userId=${userId} → absent (no active key in HTML)`);
       return "absent";
     }
 
-    // Compare the found active key against the expected key
     if (activeKey === apiKey) {
+      console.log(`[keyStatus] userId=${userId} → present (exact match)`);
       return "present";
     }
 
     // Active key differs from what we have stored → our key was replaced/deleted
-    console.log(`[keyStatus] userId=${userId} → absent (active key differs)`);
+    console.log(`[keyStatus] userId=${userId} → absent (active key differs: ${activeKey.slice(0, 16)}... vs ${apiKey.slice(0, 16)}...)`);
     return "absent";
   } catch (error) {
     console.error(`[keyStatus] userId=${userId} → unknown (error: ${error instanceof Error ? error.message : error})`);
