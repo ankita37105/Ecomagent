@@ -55,9 +55,13 @@ function getProviderConfig(): ProviderConfig {
   }
 
   const loginUsername = safeTrim(
-    process.env.PROVIDER_LOGIN_EMAIL ?? process.env.PROVIDER_LOGIN_USERNAME
+    process.env.PROVIDER_LOGIN_EMAIL ??
+    process.env.PROVIDER_LOGIN_USERNAME ??
+    process.env.ADMIN_EMAIL
   );
-  const loginPassword = safeTrim(process.env.PROVIDER_LOGIN_PASSWORD);
+  const loginPassword = safeTrim(
+    process.env.PROVIDER_LOGIN_PASSWORD ?? process.env.ADMIN_PASSWORD
+  );
 
   const rawCookie = safeTrim(process.env.PROVIDER_SESSION_COOKIE);
   const hasStaticCookie = Boolean(rawCookie && !isPlaceholderCookie(rawCookie));
@@ -356,7 +360,11 @@ export async function providerFetch(pathOrUrl: string, init: ProviderFetchInit =
   const config = getProviderConfig();
   const url = toProviderUrl(config.baseUrl, pathOrUrl);
 
-  const firstCookie = sessionCookie ?? await getInitialCookie(config);
+  // Merge any caller-provided cookie with the latest rotated runtime cookie.
+  // Some provider flows rotate the session between create-user and generate-key,
+  // so reusing only the original cookie breaks the follow-up request.
+  const mergedSessionCookie = mergeCookies(sessionCookie, runtimeSessionCookie);
+  const firstCookie = mergedSessionCookie || await getInitialCookie(config);
   let response = await fetchWithCookie(url, requestInit, firstCookie);
 
   if (await looksLikeAuthFailure(response)) {
@@ -364,7 +372,9 @@ export async function providerFetch(pathOrUrl: string, init: ProviderFetchInit =
       throw new ProviderAuthError("Provider authentication failed for request");
     }
 
-    const refreshedCookie = sessionCookie ?? await ensureRefreshCookie(config);
+    // Always refresh on auth failure. Reusing a stale explicit cookie causes
+    // create-user -> generate-key flows to fail even though the user was created.
+    const refreshedCookie = await ensureRefreshCookie(config);
     response = await fetchWithCookie(url, requestInit, refreshedCookie);
 
     if (await looksLikeAuthFailure(response)) {
