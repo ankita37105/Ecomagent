@@ -38,24 +38,40 @@ function extractUserIdFromHtml(html: string, email: string) {
 function extractKeyFromLocationOrBody(location: string | null, body: string) {
   if (location) {
     const queryPart = location.includes("?") ? location.split("?")[1] : "";
-    const fromLocation = new URLSearchParams(queryPart).get("new_key");
-    if (fromLocation) return fromLocation;
+    const query = new URLSearchParams(queryPart);
+    const fromLocation =
+      query.get("new_key") ??
+      query.get("api_key") ??
+      query.get("key") ??
+      null;
+    if (fromLocation) return decodeURIComponent(fromLocation);
+
+    // Some providers include the key directly in the URL or fragment.
+    const inlineFromLocation = location.match(/\b(sk-[A-Za-z0-9_-]{20,})\b/);
+    if (inlineFromLocation?.[1]) return inlineFromLocation[1];
   }
 
-  const bodyMatch = body.match(/[?&]new_key=([^&"'\s<]+)/i);
-  if (bodyMatch?.[1]) {
+  const queryStyleMatch = body.match(/[?&](?:new_key|api_key|key)=([^&"'\s<]+)/i);
+  if (queryStyleMatch?.[1]) {
     try {
-      return decodeURIComponent(bodyMatch[1]);
+      return decodeURIComponent(queryStyleMatch[1]);
     } catch {
-      return bodyMatch[1];
+      return queryStyleMatch[1];
     }
   }
 
-  return null;
-}
+  const inputValueMatch = body.match(
+    /name=["'](?:new_key|api_key|key)["'][^>]*value=["']([^"']+)["']/i
+  );
+  if (inputValueMatch?.[1]) return inputValueMatch[1];
 
-async function wait(ms: number) {
-  await new Promise((resolve) => setTimeout(resolve, ms));
+  const jsonStyleMatch = body.match(/["'](?:new_key|api_key|key)["']\s*:\s*["']([^"']+)["']/i);
+  if (jsonStyleMatch?.[1]) return jsonStyleMatch[1];
+
+  const inlineFromBody = body.match(/\b(sk-[A-Za-z0-9_-]{20,})\b/);
+  if (inlineFromBody?.[1]) return inlineFromBody[1];
+
+  return null;
 }
 
 async function generateKeyForUser(
@@ -63,48 +79,37 @@ async function generateKeyForUser(
   userId: string,
   browserLikeHeaders: Record<string, string>
 ) {
-  let apiKey: string | null = null;
-  let lastKeyStatus = 0;
-  let lastKeyBody = "";
-
-  for (let attempt = 1; attempt <= 3; attempt++) {
-    if (attempt > 1) {
-      await wait(1000 * attempt);
+  // Single generation attempt avoids accidental multi-key creation on providers
+  // where response parsing is flaky but key creation succeeds.
+  const keyRes = await providerFetch(
+    `/partner/users/${userId}/api-keys/generate`,
+    {
+      method: "POST",
+      headers: {
+        ...browserLikeHeaders,
+        referer: `${baseUrl}/partner/users/${userId}`,
+      },
+      body: "key_name=EcomAgent+Trial&client_identifier=&description=Auto+Trial&rpm_limit=10&daily_limit=100",
+      redirect: "manual",
+      cache: "no-store",
+      retryOnAuthFailure: true,
     }
+  );
 
-    const keyRes = await providerFetch(
-      `/partner/users/${userId}/api-keys/generate`,
-      {
-        method: "POST",
-        headers: {
-          ...browserLikeHeaders,
-          referer: `${baseUrl}/partner/users/${userId}`,
-        },
-        body: "key_name=EcomAgent+Trial&client_identifier=&description=Auto+Trial&rpm_limit=10&daily_limit=100",
-        redirect: "manual",
-        cache: "no-store",
-        retryOnAuthFailure: true,
-      }
-    );
+  const keyUrl = keyRes.headers.get("location");
+  const keyBody = await keyRes.text().catch(() => "");
+  const apiKey = extractKeyFromLocationOrBody(keyUrl, keyBody);
 
-    const keyUrl = keyRes.headers.get("location");
-    const keyBody = await keyRes.text().catch(() => "");
-
-    lastKeyStatus = keyRes.status;
-    lastKeyBody = keyBody;
-    apiKey = extractKeyFromLocationOrBody(keyUrl, keyBody);
-
-    if (apiKey) break;
-
+  if (!apiKey) {
     console.warn(
-      `Key generation attempt ${attempt} failed. Status:`,
+      "Key generation response did not include parsable key. Status:",
       keyRes.status,
       "Body:",
       keyBody.slice(0, 250)
     );
   }
 
-  return { apiKey, lastKeyStatus, lastKeyBody };
+  return { apiKey, lastKeyStatus: keyRes.status, lastKeyBody: keyBody };
 }
 
 export async function POST(request: NextRequest) {
