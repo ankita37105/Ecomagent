@@ -7,7 +7,7 @@ import { supabase } from "@/lib/supabase";
 import {
   Zap, LayoutDashboard, Key, BarChart3, CreditCard, FileText,
   LogOut, Copy, Check, Eye, EyeOff, RefreshCw, Plus, ExternalLink, LifeBuoy,
-  Menu, X, Activity, Cpu, TrendingUp, Shield, ChevronRight,
+  Menu, X, Activity, Cpu, TrendingUp, Shield, ChevronRight, Users,
 } from "lucide-react";
 
 type ApiKeyData = { key: string; name: string; createdAt: string; userId: string };
@@ -355,6 +355,20 @@ export default function DashboardPage() {
               Documentation
               <ExternalLink size={11} style={{ marginLeft: "auto" }} />
             </Link>
+            <a
+              href="https://t.me/Calude_Max_5X_20x_Code_Pro_AI"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                display: "flex", alignItems: "center", gap: 10, padding: "9px 12px",
+                borderRadius: 9, fontSize: 13, color: "#555", textDecoration: "none",
+                transition: "color 0.15s",
+              }}
+            >
+              <Users size={15} />
+              Community
+              <ExternalLink size={11} style={{ marginLeft: "auto" }} />
+            </a>
             <a
               href="https://t.me/legit_is_back"
               target="_blank"
